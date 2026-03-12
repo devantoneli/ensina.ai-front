@@ -1,0 +1,50 @@
+/* Estilos específicos da página de Login */
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  background-color: #f5e5dc;
+}
+
+.login-left-panel {
+  background: linear-gradient(144deg, rgb(91, 159, 201) 17%, rgb(91, 159, 201) 62%, rgb(255, 241, 228) 107%);
+}
+
+.login-gradient-button {
+  background: linear-gradient(to bottom, #5b9fc9, #a8d8e8);
+}
+
+.login-gradient-icon {
+  background: linear-gradient(to bottom, #5b9fc9, #a8d8e8);
+}
+
+/* Animações suaves para inputs */
+.login-input:focus {
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* Hover states */
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(91, 159, 201, 0.3);
+  transition: all 0.3s ease;
+}
+
+.login-link:hover {
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* Loading state */
+.login-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Responsividade adicional */
+@media (max-width: 1024px) {
+  .login-left-panel {
+    display: none;
+  }
+}
