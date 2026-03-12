@@ -1,0 +1,44 @@
+/* Estilos específicos da página de Cadastro */
+
+.register-container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f5e5dc 0%, #f5e5dc 50%, #f5d5c8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.register-title-gradient {
+  background: linear-gradient(180deg, #5b9fc9 0%, #a8d8e8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.register-gradient-button {
+  background: linear-gradient(to bottom, #5b9fc9, #a8d8e8);
+}
+
+.register-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(91, 159, 201, 0.3);
+  transition: all 0.3s ease;
+}
+
+.register-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.register-profile-btn {
+  transition: all 0.2s ease;
+}
+
+.register-profile-btn:hover {
+  border-color: #5b9fc9;
+  background-color: rgba(91, 159, 201, 0.05);
+}
+
+.register-input:focus {
+  transition: all 0.2s ease;
+}
