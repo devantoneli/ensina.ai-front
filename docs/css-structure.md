@@ -8,13 +8,13 @@ O projeto utiliza uma estrutura modular de CSS, onde cada página tem seu própr
 
 - **`app/globals.css`** - Estilos globais e configuração do Tailwind
 - **`app/login/login.css`** - Estilos específicos da página de login
-- **`app/register/register.css`** (futuro) - Estilos específicos da página de registro
-- **`app/User/user.css`** (futuro) - Estilos específicos do dashboard do usuário
+- **`app/register/register.css`** - Estilos específicos da página de registro
+- **`app/chat/chat.css`** - Estilos específicos da página de chat
 
 ### Convenções de Nomenclatura
 
 Cada página deve ter:
-1. **Prefixo da página** nas classes CSS (ex: `login-`, `register-`, `user-`)
+1. **Prefixo da página** nas classes CSS (ex: `login-`, `register-`, `chat-`)
 2. **Arquivo CSS na mesma pasta** da página
 3. **Import local** do CSS na página específica
 
@@ -67,13 +67,16 @@ app/
 ├── layout.tsx           # Layout principal (importa globals.css)
 ├── login/
 │   ├── page.tsx        # Página de login
+│   ├── login.tsx       # Implementação da tela
 │   └── login.css       # Estilos específicos do login
 ├── register/
 │   ├── page.tsx        # Página de registro
+│   ├── register.tsx    # Implementação da tela
 │   └── register.css    # Estilos específicos do registro
-└── User/
-    ├── page.tsx        # Dashboard do usuário
-    └── user.css        # Estilos específicos do usuário
+└── chat/
+  ├── page.tsx        # Página de chat
+  ├── chat.tsx        # Implementação da tela
+  └── chat.css        # Estilos específicos do chat
 ```
 
 ### Gradientes
