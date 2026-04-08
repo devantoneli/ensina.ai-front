@@ -61,11 +61,11 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-5xl flex flex-col lg:flex-row gap-16 items-center">
+    <div className="min-h-screen flex items-center justify-center px-6 py-10 bg-[#f5e5dc]">
+      <div className="w-full max-w-[1200px] flex flex-col lg:flex-row gap-20 items-center lg:items-start">
 
         {/* Lado Esquerdo - Apresentação */}
-        <div className="hidden lg:flex flex-col gap-10 w-1/2 max-w-md">
+        <div className="hidden lg:flex flex-col gap-10 w-1/2 max-w-[520px]">
 
           {/* Ícone do livro */}
           <div>
@@ -119,8 +119,8 @@ export default function RegisterPage() {
         </div>
 
         {/* Lado Direito - Formulário */}
-        <div className="w-full lg:w-1/2">
-          <div className="bg-white rounded-3xl shadow-2xl px-10 py-10 w-full">
+        <div className="w-full lg:w-1/2 lg:max-w-[420px]">
+          <div className="bg-[#f8f8f8] rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.18)] px-10 py-10 w-full">
 
             {/* Título */}
             <div className="text-center mb-8">
