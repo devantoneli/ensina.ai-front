@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
 import Link from 'next/link';
 import Image from 'next/image';
-import './register.css';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -62,7 +61,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="register-container px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-5xl flex flex-col lg:flex-row gap-16 items-center">
 
         {/* Lado Esquerdo - Apresentação */}
@@ -78,7 +77,7 @@ export default function RegisterPage() {
             />
 
             {/* Título com gradiente */}
-            <h1 className="register-title-gradient text-3xl font-medium mt-6 leading-tight">
+            <h1 className="text-3xl font-medium mt-6 leading-tight bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] bg-clip-text text-transparent">
               Comece sua jornada no Ensina Aí
             </h1>
 
@@ -150,7 +149,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="João Silva"
-                  className="register-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                  className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
                 />
               </div>
@@ -170,7 +169,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  className="register-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                  className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
                 />
               </div>
@@ -190,7 +189,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo 6 caracteres"
-                  className="register-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                  className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
                 />
               </div>
@@ -210,7 +209,7 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Digite a senha novamente"
-                  className="register-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                  className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
                 />
               </div>
@@ -222,7 +221,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setRole('student')}
-                    className={`register-profile-btn flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium text-[#2d3748] transition-all ${
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium text-[#2d3748] transition-all ${
                       role === 'student'
                         ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.05)]'
                         : 'border-[rgba(91,159,201,0.2)] bg-transparent'
@@ -234,7 +233,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setRole('admin')}
-                    className={`register-profile-btn flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium text-[#2d3748] transition-all ${
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium text-[#2d3748] transition-all ${
                       role === 'admin'
                         ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.05)]'
                         : 'border-[rgba(91,159,201,0.2)] bg-transparent'
@@ -273,7 +272,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="register-button register-gradient-button w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Criando conta...' : (
                   <>
