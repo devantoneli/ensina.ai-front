@@ -16,6 +16,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const canSubmit = acceptedTerms && !isLoading;
+  const isStudentSelected = role === 'student';
+  const isAdminSelected = role === 'admin';
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -109,13 +111,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-10 bg-[#f5e5dc]">
+    <div data-page="register" className="min-h-screen flex items-center justify-center px-6 py-10 bg-[#f5e5dc]">
       <div className="w-full max-w-[1200px] flex flex-col lg:flex-row gap-20 items-center lg:items-start">
-
         {/* Lado Esquerdo - Apresentação */}
         <div className="hidden lg:flex flex-col gap-10 w-1/2 max-w-[520px]">
-
-          {/* Ícone do livro */}
           <div>
             <Image
               src="/assets/cadastro/Container.svg"
@@ -124,25 +123,22 @@ export default function RegisterPage() {
               height={64}
             />
 
-            {/* Título com gradiente */}
             <h1 className="text-3xl font-medium mt-6 leading-tight bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] bg-clip-text text-transparent">
               Comece sua jornada no Ensina Aí
             </h1>
 
-            {/* Descrição */}
             <p className="text-[#6b7280] text-lg leading-7 mt-4">
               Transforme seu aprendizado de Português com inteligência artificial e método socrático
             </p>
           </div>
 
-          {/* Lista de benefícios */}
           <div className="flex flex-col gap-4">
-            {[
+            {([
               'Chat interativo com IA especializada em Português',
               'Simulados personalizados e adaptados ao seu nível',
               'Acompanhamento detalhado do seu progresso',
               '100% gratuito e em conformidade com a LGPD',
-            ].map((item) => (
+            ]).map((item) => (
               <div key={item} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[rgba(136,201,161,0.2)] flex items-center justify-center flex-shrink-0">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -154,7 +150,6 @@ export default function RegisterPage() {
             ))}
           </div>
 
-          {/* Depoimento */}
           <div className="bg-white/50 border border-white rounded-2xl p-6">
             <p className="text-[#6b7280] text-sm leading-5">
               &ldquo;O Ensina Aí revolucionou minha forma de estudar Português. O método socrático me fez realmente entender, não apenas decorar!&rdquo;
@@ -168,16 +163,13 @@ export default function RegisterPage() {
 
         {/* Lado Direito - Formulário */}
         <div className="w-full lg:w-1/2 lg:max-w-[420px]">
-          <div className="bg-[#f8f8f8] rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.18)] px-10 py-10 w-full">
-
-            {/* Título */}
+          <div className="w-full rounded-3xl bg-[#f8f8f8] px-10 py-10 shadow-[0_20px_40px_rgba(0,0,0,0.18)]">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-medium text-[#2d3748]">Criar sua conta</h2>
               <p className="text-[#6b7280] text-sm mt-2">Preencha seus dados para começar</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-
               {/* Erro */}
               {error && (
                 <div className="bg-[#fef2f2] border border-[#ffc9c9] rounded-2xl px-4 py-3">
@@ -279,17 +271,18 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setRole('student')}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${role === 'student'
-                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.08)] text-[#2d3748]'
-                        : 'border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280]'
-                      }`}
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${
+                      isStudentSelected
+                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.12)]'
+                        : 'border-[#d1d5db] bg-[#f3f4f6]'
+                    }`}
                   >
                     <svg
                       width="32"
                       height="32"
                       viewBox="0 0 24 24"
                       fill="none"
-                      className={role === 'student' ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
+                      className={isStudentSelected ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
                       }
                       stroke="currentColor"
                       strokeWidth="1.8"
@@ -297,23 +290,24 @@ export default function RegisterPage() {
                       <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
                       <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     </svg>
-                    Estudante
+                    <span className={isStudentSelected ? 'text-[#2d3748]' : 'text-[#6b7280]'}>Estudante</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setRole('admin')}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${role === 'admin'
-                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.08)] text-[#2d3748]'
-                        : 'border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280]'
-                      }`}
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${
+                      isAdminSelected
+                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.12)]'
+                        : 'border-[#d1d5db] bg-[#f3f4f6]'
+                    }`}
                   >
                     <svg
                       width="32"
                       height="32"
                       viewBox="0 0 24 24"
                       fill="none"
-                      className={role === 'admin' ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
+                      className={isAdminSelected ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
                       }
                       stroke="currentColor"
                       strokeWidth="1.8"
@@ -332,7 +326,7 @@ export default function RegisterPage() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                    Admin
+                    <span className={isAdminSelected ? 'text-[#2d3748]' : 'text-[#6b7280]'}>Admin</span>
                   </button>
                 </div>
               </div>
