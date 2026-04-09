@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ensina.ai-front
 
-## Getting Started
+Frontend do projeto ensina.ai, desenvolvido com Next.js.
 
-First, run the development server:
+## Pre-requisitos
+
+- Node.js 20.9 ou superior
+- npm 10 ou superior (ou outro gerenciador compativel)
+
+Para validar as versoes instaladas:
+
+```bash
+node -v
+npm -v
+```
+
+## Instalacao das dependencias
+
+No diretorio raiz do projeto, execute:
+
+```bash
+npm install
+```
+
+Esse comando instala todas as dependencias listadas em package.json.
+
+## Execucao em ambiente de desenvolvimento
+
+Com as dependencias instaladas, inicie o servidor local:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Depois, acesse no navegador:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Build e execucao em producao
 
-## Learn More
+Para gerar a build de producao:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Para executar a aplicacao com a build gerada:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run start
+```
 
-## Deploy on Vercel
+## Lint
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Para verificar padrao de codigo e possiveis problemas:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+```
+
+## Scripts disponiveis
+
+- npm run dev: inicia o projeto em modo desenvolvimento.
+- npm run build: gera a build de producao.
+- npm run start: inicia o servidor com a build de producao.
+- npm run lint: executa o lint do projeto.
