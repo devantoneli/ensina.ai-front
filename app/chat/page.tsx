@@ -9,7 +9,69 @@ type ChatMessage = {
   content: string;
 };
 
+type FreeModeResponse = {
+  state?: string;
+  classification?: {
+    discipline?: string;
+    contents?: string[];
+  };
+  trail?: {
+    trail?: Array<{
+      title?: string;
+      activities?: string[];
+      prerequisites?: string[];
+    }>;
+  };
+  detail?: string;
+  message?: string;
+};
+
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function formatFreeModeResponse(data: FreeModeResponse): string {
+  const discipline = data.classification?.discipline;
+  const contents = data.classification?.contents ?? [];
+  const modules = data.trail?.trail ?? [];
+
+  if (!discipline && contents.length === 0 && modules.length === 0) {
+    return data.message ?? data.detail ?? 'Não recebi uma trilha válida do backend.';
+  }
+
+  const lines: string[] = [];
+
+  if (discipline) {
+    lines.push(`Disciplina identificada: ${discipline}`);
+  }
+
+  if (contents.length > 0) {
+    lines.push('');
+    lines.push('Conteúdos relacionados:');
+    contents.forEach((content) => {
+      lines.push(`• ${content}`);
+    });
+  }
+
+  if (modules.length > 0) {
+    lines.push('');
+    lines.push('Trilha sugerida:');
+
+    modules.forEach((module, index) => {
+      lines.push(`${index + 1}. ${module.title ?? 'Módulo sem título'}`);
+
+      if (module.activities?.length) {
+        module.activities.forEach((activity) => {
+          lines.push(`   - ${activity}`);
+        });
+      }
+
+      if (module.prerequisites?.length) {
+        lines.push(`   Pré-requisitos: ${module.prerequisites.join(', ')}`);
+      }
+    });
+  }
+
+  return lines.join('\n');
+}
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -34,27 +96,41 @@ export default function ChatPage() {
     setIsSending(true);
 
     try {
+      const token =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token')
+          : null;
+
+      if (!token) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            role: 'assistant',
+            content: 'Sua sessão expirou. Faça login novamente para continuar no chat.',
+          },
+        ]);
+        return;
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ message: text, messages: history }),
       });
 
-      const data = (await response.json().catch(() => null)) as
-        | { reply?: string; answer?: string; content?: string; message?: string }
-        | null;
-
-      const reply = data?.reply ?? data?.answer ?? data?.content ?? data?.message;
+      const data = (await response.json().catch(() => null)) as FreeModeResponse | null;
+      const reply = data ? formatFreeModeResponse(data) : 'Não foi possível interpretar a resposta do backend.';
 
       setMessages((prev) => [
         ...prev,
         {
           id: makeId(),
           role: 'assistant',
-          content:
-            response.ok && reply
-              ? reply
-              : 'Recebi sua mensagem. Conecte o endpoint de IA para respostas completas.',
+          content: response.ok ? reply : data?.detail ?? data?.message ?? 'Erro ao processar pergunta no backend.',
         },
       ]);
     } catch {
@@ -129,6 +205,7 @@ export default function ChatPage() {
                             ? 'ml-auto bg-[#2f90e5] text-white'
                             : 'mr-auto bg-white text-[#1f2937] border border-white/70'
                         }`}
+                        style={{ whiteSpace: 'pre-line' }}
                       >
                         {msg.content}
                       </div>

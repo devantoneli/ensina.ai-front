@@ -10,7 +10,9 @@ export default function ChatSidebar() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setIsLoggedIn(Boolean(window.localStorage.getItem('auth_token')));
+    setIsLoggedIn(
+      Boolean(window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token')),
+    );
   }, []);
 
   const handleProfile = () => {
@@ -28,7 +30,9 @@ export default function ChatSidebar() {
       // ...existing code...
     } finally {
       if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('access_token');
         window.localStorage.removeItem('auth_token');
+        window.localStorage.removeItem('user_data');
         window.sessionStorage.removeItem('registered_email');
         window.sessionStorage.removeItem('last_login_email');
         window.sessionStorage.removeItem('just_registered');

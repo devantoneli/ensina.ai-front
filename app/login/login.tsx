@@ -78,10 +78,14 @@ export default function LoginPage() {
         throw new Error(extractApiError(data, `Erro ${response.status} ao entrar.`));
       }
 
-      const parsed = (data ?? {}) as { access_token?: string; token?: string };
+      const parsed = (data ?? {}) as { access_token?: string; token?: string; user_data?: unknown };
       const token = parsed.access_token || parsed.token;
       if (typeof window !== 'undefined' && token) {
+        window.localStorage.setItem('access_token', token);
         window.localStorage.setItem('auth_token', token);
+        if (parsed.user_data) {
+          window.localStorage.setItem('user_data', JSON.stringify(parsed.user_data));
+        }
       }
 
       router.push('/chat');
