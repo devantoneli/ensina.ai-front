@@ -107,6 +107,22 @@ async function registerWithMock(data: RegisterRequest): Promise<LoginResponse> {
   return persistSession(sanitizeMockUser(newUser));
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  // mantém explícito no console para facilitar debug
+  // (erro de tela já tratado no register.tsx)
+  // eslint-disable-next-line no-console
+  console.warn('NEXT_PUBLIC_API_URL não definida');
+}
+
+type RegisterPayload = {
+  name: string;
+  email: string;
+  password: string;
+  role: 'student' | 'admin';
+};
+
 export const authService = {
   /**
    * Realiza login do usuário
@@ -137,19 +153,16 @@ export const authService = {
   /**
    * Realiza cadastro de novo usuário
    */
-  async register(data: RegisterRequest): Promise<LoginResponse> {
+  async register(payload: RegisterPayload): Promise<LoginResponse> {
     if (isMockAuthEnabled()) {
-      return registerWithMock(data);
+      return registerWithMock(payload);
     }
 
     try {
-      const response = await api.post<LoginResponse>('/auth/register', data);
-
-      if (response.data.access_token) {
-        localStorage.setItem(ACCESS_TOKEN_KEY, response.data.access_token);
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user_data));
-      }
-
+      const response = await axios.post(`${API_URL}/auth/register`, payload, {
+        headers: { 'Content-Type': 'application/json' },
+        withCredentials: true,
+      });
       return response.data;
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {

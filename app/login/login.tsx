@@ -1,44 +1,92 @@
 'use client';
 
 import axios from 'axios';
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { authService } from '@/services/authService';
+import { useEffect, useState, FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import './login.css';
 
+function extractApiError(data: unknown, fallback: string) {
+  if (!data || typeof data !== 'object') return fallback;
+  const obj = data as {
+    message?: string;
+    detail?: Array<{ msg?: string }> | string;
+  };
+
+  if (obj.message) return obj.message;
+  if (Array.isArray(obj.detail) && obj.detail.length) {
+    return obj.detail.map((d) => d?.msg).filter(Boolean).join(' | ') || fallback;
+  }
+  if (typeof obj.detail === 'string') return obj.detail;
+  return fallback;
+}
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const emailFromQuery = searchParams.get('email');
+    const emailFromStorage =
+      typeof window !== 'undefined'
+        ? window.sessionStorage.getItem('last_login_email') ||
+          window.sessionStorage.getItem('registered_email')
+        : null;
+
+    if (emailFromQuery) setEmail(emailFromQuery);
+    else if (emailFromStorage) setEmail(emailFromStorage);
+
+    if (searchParams.get('registered') === '1') {
+      setSuccess('Conta criada com sucesso. Faça login para continuar.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
-    // Validação básica
-    if (!email || !password) {
-      setError('Por favor, preencha todos os campos');
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !password) {
+      setError('Preencha e-mail e senha.');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      await authService.login({ email, password });
-      // Redirecionar para dashboard do usuário
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+
+      let data: unknown = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(extractApiError(data, `Erro ${response.status} ao entrar.`));
+      }
+
+      const parsed = (data ?? {}) as { access_token?: string; token?: string };
+      const token = parsed.access_token || parsed.token;
+      if (typeof window !== 'undefined' && token) {
+        window.localStorage.setItem('auth_token', token);
+      }
+
       router.push('/chat');
     } catch (error: unknown) {
-      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
-        ? error.response?.data?.message
-        : error instanceof Error
-          ? error.message
-          : undefined;
-
-      setError(errorMessage || 'Erro ao fazer login. Verifique suas credenciais.');
+      setError(error instanceof Error ? error.message : 'Falha ao fazer login.');
     } finally {
       setIsLoading(false);
     }
@@ -147,11 +195,18 @@ export default function LoginPage() {
             </div>
 
             {/* Formulário */}
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               {/* Mensagem de erro */}
               {error && (
-                <div className="bg-[#fef2f2] border border-[#ffc9c9] rounded-2xl p-4">
+                <div className="bg-[#fef2f2] border border-[#ffc9c9] rounded-2xl px-4 py-3">
                   <p className="text-[#c10007] text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Mensagem de sucesso */}
+              {success && (
+                <div className="bg-[#ecfdf3] border border-[#9ee6b8] rounded-2xl px-4 py-3">
+                  <p className="text-[#0f7a35] text-sm">{success}</p>
                 </div>
               )}
 
@@ -199,10 +254,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="login-button login-gradient-button w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Entrando...' : 'Entrar na plataforma'}
-                {!isLoading && <span>→</span>}
               </button>
             </form>
 

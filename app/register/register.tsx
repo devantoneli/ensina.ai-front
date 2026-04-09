@@ -1,9 +1,7 @@
 'use client';
 
-import axios from 'axios';
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/services/authService';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -17,13 +15,22 @@ export default function RegisterPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const canSubmit = acceptedTerms && !isLoading;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
-    if (!name || !email || !password || !confirmPassword) {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName || !trimmedEmail || !password || !confirmPassword) {
       setError('Por favor, preencha todos os campos');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+      setError('Digite um e-mail válido');
       return;
     }
 
@@ -44,17 +51,58 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    try {
-      await authService.register({ name, email, password, role });
-      router.push('/chat');
-    } catch (error: unknown) {
-      const errorMessage = axios.isAxiosError<{ message?: string }>(error)
-        ? error.response?.data?.message
-        : error instanceof Error
-          ? error.message
-          : undefined;
+    const payload = {
+      name: trimmedName,
+      email: trimmedEmail,
+      password,
+      role,
+    };
 
-      setError(errorMessage || 'Erro ao criar conta. Tente novamente.');
+    const registerEndpoint = '/api/auth/register';
+
+    try {
+      const response = await fetch(registerEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      let responseData: { id?: string | number; message?: string } | null = null;
+      try {
+        responseData = (await response.json()) as { id?: string | number; message?: string };
+      } catch {
+        responseData = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(responseData?.message || `Erro ${response.status} ao criar conta.`);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('registered_email', trimmedEmail);
+        window.sessionStorage.setItem('last_login_email', trimmedEmail);
+        window.sessionStorage.setItem('just_registered', '1');
+        window.sessionStorage.setItem('last_register_status', String(response.status));
+        if (responseData?.id !== undefined) {
+          window.sessionStorage.setItem('last_registered_user_id', String(responseData.id));
+        }
+      }
+
+      console.info('[register] usuário criado com sucesso', {
+        status: response.status,
+        email: trimmedEmail,
+        id: responseData?.id,
+      });
+
+      router.push(
+        `/login?registered=1&source=register&email=${encodeURIComponent(trimmedEmail)}`,
+      );
+    } catch (error: unknown) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao criar conta. Tente novamente.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +146,7 @@ export default function RegisterPage() {
               <div key={item} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[rgba(136,201,161,0.2)] flex items-center justify-center flex-shrink-0">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M2 7L5.5 10.5L12 4" stroke="#88C9A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 7L5.5 10.5L12 4" stroke="#88C9A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
                 <span className="text-[#2d3748] text-base">{item}</span>
@@ -146,11 +194,13 @@ export default function RegisterPage() {
                 <input
                   id="name"
                   type="text"
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="João Silva"
                   className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
+                  autoComplete="name"
                 />
               </div>
 
@@ -158,19 +208,21 @@ export default function RegisterPage() {
               <div className="flex flex-col gap-2">
                 <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-[#2d3748]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <rect x="1" y="3" width="14" height="10" rx="2" stroke="#6b7280" strokeWidth="1.5"/>
-                    <path d="M1 6l7 4 7-4" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round"/>
+                    <rect x="1" y="3" width="14" height="10" rx="2" stroke="#6b7280" strokeWidth="1.5" />
+                    <path d="M1 6l7 4 7-4" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                   Email
                 </label>
                 <input
                   id="email"
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
+                  autoComplete="email"
                 />
               </div>
 
@@ -178,19 +230,22 @@ export default function RegisterPage() {
               <div className="flex flex-col gap-2">
                 <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-[#2d3748]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="#6b7280" strokeWidth="1.5"/>
-                    <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round"/>
+                    <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="#6b7280" strokeWidth="1.5" />
+                    <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                   Senha
                 </label>
                 <input
                   id="password"
                   type="password"
+                  required
+                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo 6 caracteres"
                   className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
               </div>
 
@@ -198,19 +253,22 @@ export default function RegisterPage() {
               <div className="flex flex-col gap-2">
                 <label htmlFor="confirmPassword" className="flex items-center gap-2 text-sm font-medium text-[#2d3748]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="#6b7280" strokeWidth="1.5"/>
-                    <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round"/>
+                    <rect x="3" y="7" width="10" height="8" rx="1.5" stroke="#6b7280" strokeWidth="1.5" />
+                    <path d="M5 7V5a3 3 0 016 0v2" stroke="#6b7280" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                   Confirmar senha
                 </label>
                 <input
                   id="confirmPassword"
                   type="password"
+                  required
+                  minLength={6}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Digite a senha novamente"
                   className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
               </div>
 
@@ -221,25 +279,59 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setRole('student')}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium text-[#2d3748] transition-all ${
-                      role === 'student'
-                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.05)]'
-                        : 'border-[rgba(91,159,201,0.2)] bg-transparent'
-                    }`}
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${role === 'student'
+                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.08)] text-[#2d3748]'
+                        : 'border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280]'
+                      }`}
                   >
-                    <Image src="/assets/cadastro/UserCircle.svg" alt="Estudante" width={32} height={32} />
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className={role === 'student' ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
+                      }
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+                      <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
                     Estudante
                   </button>
+
                   <button
                     type="button"
                     onClick={() => setRole('admin')}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium text-[#2d3748] transition-all ${
-                      role === 'admin'
-                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.05)]'
-                        : 'border-[rgba(91,159,201,0.2)] bg-transparent'
-                    }`}
+                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${role === 'admin'
+                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.08)] text-[#2d3748]'
+                        : 'border-[#d1d5db] bg-[#f3f4f6] text-[#6b7280]'
+                      }`}
                   >
-                    <Image src="/assets/cadastro/ShieldCheck.svg" alt="Admin" width={32} height={32} />
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className={role === 'admin' ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
+                      }
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path
+                        d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M9.5 12l2 2 3-3"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                     Admin
                   </button>
                 </div>
@@ -271,7 +363,7 @@ export default function RegisterPage() {
               {/* Botão de cadastro */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={!canSubmit}
                 className="w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Criando conta...' : (
@@ -289,6 +381,7 @@ export default function RegisterPage() {
                   Fazer login
                 </Link>
               </p>
+
             </form>
           </div>
         </div>
