@@ -26,6 +26,12 @@ type FreeModeResponse = {
   message?: string;
 };
 
+type TrailModule = {
+  title?: string;
+  activities?: string[];
+  prerequisites?: string[];
+};
+
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function formatFreeModeResponse(data: FreeModeResponse): string {
@@ -73,10 +79,15 @@ function formatFreeModeResponse(data: FreeModeResponse): string {
   return lines.join('\n');
 }
 
+function normalizeTrailModules(data: FreeModeResponse): TrailModule[] {
+  return data.trail?.trail ?? [];
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [latestAnalysis, setLatestAnalysis] = useState<FreeModeResponse | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -113,17 +124,19 @@ export default function ChatPage() {
         return;
       }
 
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`/api/chat?question=${encodeURIComponent(text)}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: text, messages: history }),
       });
 
       const data = (await response.json().catch(() => null)) as FreeModeResponse | null;
       const reply = data ? formatFreeModeResponse(data) : 'Não foi possível interpretar a resposta do backend.';
+
+      if (response.ok && data) {
+        setLatestAnalysis(data);
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -147,6 +160,10 @@ export default function ChatPage() {
     }
   };
 
+  const contents = latestAnalysis?.classification?.contents ?? [];
+  const trailModules = normalizeTrailModules(latestAnalysis ?? {});
+  const discipline = latestAnalysis?.classification?.discipline;
+
   return (
     <div className="h-screen overflow-hidden bg-[#d7e7f5]">
       <ChatSidebar />
@@ -160,15 +177,67 @@ export default function ChatPage() {
               <h2 className="mt-1 text-[30px] leading-[36px] font-medium text-[#1f2937]">Conteúdos</h2>
 
               <div className="mt-4 rounded-2xl bg-white/65 p-4">
-                <p className="text-sm font-medium text-[#1f2937]">Sem conteúdos ainda</p>
-                <p className="mt-1 text-xs text-[#6b7280]">
-                  Os principais pontos da conversa vão aparecer aqui conforme o chat evolui.
-                </p>
+                {discipline ? (
+                  <>
+                    <p className="text-sm font-medium text-[#1f2937]">{discipline}</p>
+                    <p className="mt-1 text-xs text-[#6b7280]">Disciplina identificada pelo backend.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-[#1f2937]">Sem conteúdos ainda</p>
+                    <p className="mt-1 text-xs text-[#6b7280]">
+                      Os principais pontos da conversa vão aparecer aqui conforme o chat evolui.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {contents.length > 0 ? (
+                  contents.map((content) => (
+                    <div key={content} className="rounded-2xl bg-white/75 px-4 py-3 text-sm text-[#1f2937]">
+                      {content}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl bg-white/55 p-4">
+                    <p className="text-xs text-[#6b7280]">Nenhum conteúdo classificado ainda.</p>
+                  </div>
+                )}
               </div>
 
               <h3 className="mt-8 text-[32px] leading-[38px] font-medium text-[#1f2937]">Conversas anteriores</h3>
               <div className="mt-4 rounded-2xl bg-white/55 p-4">
-                <p className="text-sm text-[#6b7280]">Nenhuma conversa salva por enquanto.</p>
+                <p className="text-sm text-[#6b7280]">
+                  {latestAnalysis?.state ? `Estado atual: ${latestAnalysis.state}` : 'Nenhuma conversa salva por enquanto.'}
+                </p>
+              </div>
+
+              <h3 className="mt-8 text-[32px] leading-[38px] font-medium text-[#1f2937]">Trilha sugerida</h3>
+              <div className="mt-4 space-y-3">
+                {trailModules.length > 0 ? (
+                  trailModules.map((module, index) => (
+                    <div key={`${module.title ?? 'module'}-${index}`} className="rounded-2xl bg-white/75 p-4">
+                      <p className="text-sm font-medium text-[#1f2937]">{module.title ?? `Módulo ${index + 1}`}</p>
+                      {module.activities?.length ? (
+                        <ul className="mt-2 space-y-1 text-xs text-[#6b7280]">
+                          {module.activities.map((activity) => (
+                            <li key={activity}>{activity}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {module.prerequisites?.length ? (
+                        <p className="mt-2 text-xs text-[#6b7280]">
+                          Pré-requisitos: {module.prerequisites.join(', ')}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl bg-white/55 p-4">
+                    <p className="text-sm text-[#6b7280]">A trilha gerada aparecerá aqui após a primeira pergunta.</p>
+                  </div>
+                )}
               </div>
             </div>
           </aside>
@@ -179,7 +248,10 @@ export default function ChatPage() {
               <h1 className="text-[30px] leading-[36px] font-medium text-[#1f2937]">Utilização de crase na frase</h1>
               <button
                 type="button"
-                onClick={() => setMessages([])}
+                onClick={() => {
+                  setMessages([]);
+                  setLatestAnalysis(null);
+                }}
                 className="h-8 w-8 rounded-full bg-white/60 text-[#6b7280] text-lg leading-none"
                 aria-label="Limpar conversa"
                 title="Limpar conversa"

@@ -27,14 +27,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Token de autenticação não informado.' }, { status: 401 });
   }
 
-  let body: ChatRequestBody;
-  try {
-    body = (await req.json()) as ChatRequestBody;
-  } catch {
-    return NextResponse.json({ message: 'Payload inválido.' }, { status: 400 });
+  let body: ChatRequestBody = {};
+  if (req.headers.get('content-length') !== '0') {
+    try {
+      body = (await req.json()) as ChatRequestBody;
+    } catch {
+      body = {};
+    }
   }
 
-  const question = (body.message ?? body.question ?? '').trim();
+  const question = (req.nextUrl.searchParams.get('question') ?? body.message ?? body.question ?? '').trim();
 
   if (!question) {
     return NextResponse.json({ message: 'Pergunta é obrigatória.' }, { status: 400 });
