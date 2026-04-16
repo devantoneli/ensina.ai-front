@@ -714,11 +714,11 @@ export default function ChatPage() {
 
           <section className="relative flex min-h-screen min-w-0 flex-1 flex-col rounded-[69px] bg-[linear-gradient(180deg,#E1F0FC_-14.48%,#79B3E0_109.23%)] px-6 shadow-[inset_1px_0_0_rgba(255,255,255,0.65)]">
             <header className="relative flex items-center justify-center py-6">
-              <h1 className="text-center text-[24px] font-medium text-[#1f2937]">{headerTitle}</h1>
+              <h1 className="text-center text-[28px] font-medium text-[#1f2937]">{headerTitle}</h1>
               <button
                 type="button"
                 onClick={handleNewChat}
-                className="absolute right-0 h-8 w-8 rounded-full text-lg text-[#1f2937] hover:bg-white/40"
+                className="absolute right-0 h-10 w-10 rounded-full text-xl text-[#1f2937] hover:bg-white/40"
                 aria-label="Nova conversa"
                 title="Nova conversa"
               >
@@ -728,27 +728,27 @@ export default function ChatPage() {
 
             <div className={`flex-1 ${!hasMessages ? 'flex items-center justify-center' : 'overflow-y-auto pb-6'}`}>
               {!hasMessages ? (
-                <div className="flex w-full flex-col items-center gap-6 px-6 text-center">
+                <div className="flex w-full flex-col items-center gap-7 px-6 text-center">
                   {greetingLine ? (
                     <p className="text-[12px] text-[#6b7b8f]">{greetingLine}</p>
                   ) : null}
-                  <p className="text-[22px] font-semibold text-[#1f2937]">O que vamos estudar hoje?</p>
+                  <p className="text-[28px] font-semibold text-[#1f2937]">O que vamos estudar hoje?</p>
                   <form
                     onSubmit={handleSend}
-                    className="w-full max-w-[520px] items-center gap-3 rounded-[18px] bg-white px-4 py-2.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
+                    className="w-full max-w-[640px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
                   >
                     <div className="flex items-center gap-3">
                       <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Por onde comecamos?"
-                        className="flex-1 bg-transparent text-sm text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
+                        placeholder="Por onde começamos?"
+                        className="flex-1 bg-transparent text-[15px] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
                         disabled={isSending}
                       />
                       <button
                         type="submit"
                         disabled={isSending || !input.trim()}
-                        className="h-9 rounded-[12px] bg-[#2f90e5] px-4 text-sm font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
+                        className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[15px] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
                       >
                         {isSending ? '...' : '➤'}
                       </button>
@@ -756,26 +756,26 @@ export default function ChatPage() {
                   </form>
                 </div>
               ) : (
-                <div className="mx-auto w-full max-w-[760px] space-y-4">
+                <div className="mx-auto w-full max-w-[900px] space-y-5">
                   {activeSession?.messages.map((message, index) => (
                     <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
                       {message.role === 'assistant' ? (
-                        <span className="mt-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_12px_rgba(34,67,111,0.12)]" />
+                        <span className="mt-1 h-7 w-7 rounded-full bg-white shadow-[0_6px_12px_rgba(34,67,111,0.12)]" />
                       ) : null}
 
                       <div
-                        className={`max-w-[78%] rounded-[20px] px-4 py-3 shadow-[0_8px_18px_rgba(34,67,111,0.12)] ${
+                        className={`max-w-[80%] rounded-[22px] px-5 py-4 shadow-[0_8px_18px_rgba(34,67,111,0.12)] ${
                           message.role === 'user'
                             ? 'bg-[#2f90e5] text-white'
                             : 'border border-white/80 bg-white text-[#1f2937]'
                         }`}
                       >
                         {message.role === 'assistant' && index === 0 && assistantMetaTitle ? (
-                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#7b8da1]">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7b8da1]">
                             {assistantMetaSubtitle ? `${assistantMetaTitle} - ${assistantMetaSubtitle}` : assistantMetaTitle}
                           </p>
                         ) : null}
-                        <p className="whitespace-pre-line text-sm leading-6">{message.content}</p>
+                        <p className="whitespace-pre-line text-[15px] leading-6">{message.content}</p>
                       </div>
                     </div>
                   ))}
@@ -788,19 +788,19 @@ export default function ChatPage() {
               <footer className="sticky bottom-0 pb-6">
                 <form
                   onSubmit={handleSend}
-                  className="mx-auto flex w-full max-w-[760px] items-center gap-3 rounded-[18px] bg-white px-4 py-2.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
+                  className="mx-auto flex w-full max-w-[900px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
                 >
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Por onde comecamos?"
-                    className="flex-1 bg-transparent text-sm text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
+                    placeholder="Por onde começamos?"
+                    className="flex-1 bg-transparent text-[15px] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
                     disabled={isSending}
                   />
                   <button
                     type="submit"
                     disabled={isSending || !input.trim()}
-                    className="h-9 rounded-[12px] bg-[#2f90e5] px-4 text-sm font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
+                    className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[15px] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
                   >
                     {isSending ? '...' : '➤'}
                   </button>
