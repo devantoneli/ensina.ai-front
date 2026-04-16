@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 export default function ChatSidebar() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const iconButton = 'flex h-14 w-14 items-center justify-center transition hover:scale-[1.03]';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -43,41 +46,41 @@ export default function ChatSidebar() {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 w-[88px] bg-[#ef7c4d]">
-      <div className="relative flex h-full flex-col items-center py-4">
-        {/* Topo */}
-        <button type="button" className="h-10 w-10 rounded-full bg-white/20 text-white" aria-label="Voltar">
-          ‹
+    <aside className="fixed inset-y-0 left-0 z-30 w-[80px] bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)]">
+      <div className="relative flex h-full flex-col items-center py-6">
+        <button type="button" className={iconButton} aria-label="Voltar">
+          <Image src="/assets/chat/Group%2021.png" alt="Voltar" width={52} height={52} />
         </button>
 
-        {/* Ações */}
-        <div className="mt-8 flex flex-col items-center gap-4">
-          <button type="button" className="h-10 w-10 rounded-full bg-white/20 text-white" aria-label="Nova conversa">＋</button>
-          <button type="button" className="h-10 w-10 rounded-full bg-white/20 text-white" aria-label="Mensagens">◦</button>
-          <button type="button" className="h-10 w-10 rounded-full bg-white/20 text-white" aria-label="Conteúdos">≡</button>
+        <div className="flex flex-1 flex-col items-center justify-center gap-5">
+          <button type="button" className={iconButton} aria-label="Nova conversa">
+            <Image src="/assets/chat/new-chat.png" alt="Nova conversa" width={52} height={52} />
+          </button>
+          <button type="button" className={iconButton} aria-label="Mensagens">
+            <Image src="/assets/chat/chat.png" alt="Mensagens" width={52} height={52} />
+          </button>
+          <button type="button" className={iconButton} aria-label="Conteudos">
+            <Image src="/assets/chat/triagem.png" alt="Conteudos" width={52} height={52} />
+          </button>
         </div>
 
-        {/* Rodapé */}
-        <div className="mt-auto relative flex flex-col items-center gap-4">
-          <button type="button" className="h-10 w-10 rounded-full bg-white/20 text-white" aria-label="Configurações">⚙</button>
+        <div className="mt-auto relative flex flex-col items-center gap-4 pb-2">
+          <button type="button" className={iconButton} aria-label="Configuracoes">
+            <Image src="/assets/chat/config.png" alt="Configuracoes" width={52} height={52} />
+          </button>
 
-          <button
-            type="button"
-            onClick={handleProfile}
-            className="h-10 w-10 rounded-full bg-white text-[#ef7c4d]"
-            aria-label="Perfil"
-          >
-            ☺
+          <button type="button" onClick={handleProfile} className={iconButton} aria-label="Perfil">
+            <Image src="/assets/chat/Perfil.png" alt="Perfil" width={52} height={52} />
           </button>
 
           {isProfileOpen && (
-            <div className="absolute left-[72px] bottom-0 w-52 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-xl">
+            <div className="absolute left-[76px] bottom-0 w-52 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-xl">
               <button
                 type="button"
                 onClick={handleLogout}
                 className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#b42318] hover:bg-[#fff1f3]"
               >
-                Finalizar sessão
+                Finalizar sessao
               </button>
             </div>
           )}
