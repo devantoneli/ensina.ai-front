@@ -30,6 +30,10 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     setIsProfileOpen((prev) => !prev);
   };
 
+  const handleConfig = () => {
+    router.push('/config');
+  };
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -69,7 +73,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
         </div>
 
         <div className="mt-auto relative flex flex-col items-center gap-4 pb-2">
-          <button type="button" className={iconButton} aria-label="Configuracoes">
+          <button type="button" onClick={handleConfig} className={iconButton} aria-label="Configuracoes">
             <Image src="/assets/chat/config.png" alt="Configuracoes" width={52} height={52} />
           </button>
 
