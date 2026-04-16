@@ -36,7 +36,7 @@ type ChatSession = {
   latestAnalysis: FreeModeResponse | null;
 };
 
-const STORAGE_KEY = 'ensina_ai_chat_sessions_v1';
+const STORAGE_PREFIX = 'ensina_ai_chat_sessions_v1';
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function sanitizeSessions(data: unknown): ChatSession[] {
@@ -95,10 +95,181 @@ function buildHistoryPreview(session: ChatSession): string[] {
   return ['Conversa salva'];
 }
 
+const ACCENT_FIXES: Record<string, string> = {
+  voce: 'voc\u00ea',
+  voces: 'voc\u00eas',
+  nao: 'n\u00e3o',
+  tambem: 'tamb\u00e9m',
+  facil: 'f\u00e1cil',
+  dificil: 'dif\u00edcil',
+  portugues: 'portugu\u00eas',
+  matematica: 'matem\u00e1tica',
+  fisica: 'f\u00edsica',
+  quimica: 'qu\u00edmica',
+  historia: 'hist\u00f3ria',
+  gramatica: 'gram\u00e1tica',
+  lingua: 'l\u00edngua',
+  acao: 'a\u00e7\u00e3o',
+  acoes: 'a\u00e7\u00f5es',
+};
+
+function applyAccentFixes(text: string): string {
+  return text
+    .split(/\s+/)
+    .map((token) => {
+      const match = token.match(/^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/);
+      if (!match) return token;
+
+      const [, prefix, word, suffix] = match;
+      const lower = word.toLowerCase();
+      const mapped = ACCENT_FIXES[lower];
+
+      if (!mapped) return token;
+
+      let result = mapped;
+      if (word === word.toUpperCase()) {
+        result = mapped.toUpperCase();
+      } else if (word[0] === word[0].toUpperCase()) {
+        result = mapped.charAt(0).toUpperCase() + mapped.slice(1);
+      }
+
+      return `${prefix}${result}${suffix}`;
+    })
+    .join(' ');
+}
+
+function sentenceCase(text: string): string {
+  let result = '';
+  let shouldCapitalize = true;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (shouldCapitalize && /[A-Za-z]/.test(char)) {
+      result += char.toUpperCase();
+      shouldCapitalize = false;
+      continue;
+    }
+
+    result += char;
+
+    if (/[.!?]/.test(char)) {
+      shouldCapitalize = true;
+    }
+  }
+
+  return result;
+}
+
+function extractHistoryItems(payload: unknown): unknown[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload !== 'object') return [];
+
+  const obj = payload as Record<string, unknown>;
+  const data = obj.data as Record<string, unknown> | undefined;
+
+  const candidates = [
+    obj.data,
+    obj.history,
+    obj.sessions,
+    obj.conversations,
+    obj.chats,
+    data?.history,
+    data?.sessions,
+    data?.conversations,
+    data?.chats,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [];
+}
+
+function parseHistoryMessages(messages: unknown, fallbackDate: string, sessionId: string): ChatMessage[] {
+  if (!Array.isArray(messages)) return [];
+
+  return messages
+    .map((item, index) => {
+      const raw = item as Record<string, unknown>;
+      const roleValue = (raw.role ?? raw.sender ?? raw.type ?? '').toString().toLowerCase();
+      const role = roleValue === 'assistant' || roleValue === 'bot' ? 'assistant' : roleValue === 'user' ? 'user' : null;
+      const content = (raw.content ?? raw.text ?? raw.message ?? '').toString();
+
+      if (!role || !content) return null;
+
+      return {
+        id: (raw.id ?? `${sessionId}-${index}`).toString(),
+        role,
+        content,
+        createdAt: (raw.created_at ?? raw.createdAt ?? fallbackDate).toString(),
+      };
+    })
+    .filter((message): message is ChatMessage => Boolean(message));
+}
+
+function parseHistorySessions(payload: unknown): ChatSession[] {
+  const items = extractHistoryItems(payload);
+
+  return items
+    .map((item) => {
+      const raw = item as Record<string, unknown>;
+      const id = (raw.id ?? raw.chat_id ?? raw.session_id ?? makeId()).toString();
+      const createdAt = (raw.created_at ?? raw.createdAt ?? new Date().toISOString()).toString();
+      const updatedAt = (raw.updated_at ?? raw.updatedAt ?? createdAt).toString();
+      const messages = parseHistoryMessages(raw.messages ?? raw.history ?? raw.items, updatedAt, id);
+      const title =
+        (raw.title ?? raw.subject ?? raw.topic ?? '').toString() ||
+        (messages.find((msg) => msg.role === 'user')?.content ? buildSessionTitle(messages.find((msg) => msg.role === 'user')!.content) : 'Conversa');
+
+      return {
+        id,
+        title,
+        createdAt,
+        updatedAt,
+        messages,
+        latestAnalysis: null,
+      };
+    })
+    .filter((session) => Boolean(session.id));
+}
+
+function mergeSessions(localSessions: ChatSession[], remoteSessions: ChatSession[]): ChatSession[] {
+  const map = new Map<string, ChatSession>();
+
+  localSessions.forEach((session) => {
+    map.set(session.id, session);
+  });
+
+  remoteSessions.forEach((session) => {
+    const current = map.get(session.id);
+    if (!current) {
+      map.set(session.id, session);
+      return;
+    }
+
+    const currentTime = new Date(current.updatedAt).getTime();
+    const incomingTime = new Date(session.updatedAt).getTime();
+    map.set(session.id, incomingTime >= currentTime ? session : current);
+  });
+
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+}
+
 function buildSessionTitle(question: string): string {
-  const clean = question.trim();
-  if (!clean) return 'Nova conversa';
-  return clean.length > 42 ? `${clean.slice(0, 42)}...` : clean;
+  const collapsed = question.replace(/\s+/g, ' ').trim();
+  if (!collapsed) return 'Nova conversa';
+
+  const withoutTrailing = collapsed.replace(/[?!.]+$/, '').trim();
+  const safeText = withoutTrailing || collapsed;
+  const sentenceCased = sentenceCase(safeText);
+  const accentFixed = applyAccentFixes(sentenceCased);
+
+  return accentFixed.length > 42 ? `${accentFixed.slice(0, 42).trim()}...` : accentFixed;
 }
 
 function inferContentsFromQuestion(question: string): string[] {
@@ -162,13 +333,37 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [userName, setUserName] = useState('');
+  const [storageKey, setStorageKey] = useState('');
   const endRef = useRef<HTMLDivElement | null>(null);
+  const activeSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let resolvedKey = `${STORAGE_PREFIX}:guest`;
+    setUserName('');
+
+    const rawUser = window.localStorage.getItem('user_data');
+    if (rawUser) {
+      try {
+        const parsed = JSON.parse(rawUser) as { id?: string | number; email?: string; name?: string };
+        if (parsed?.name) {
+          setUserName(parsed.name.split(' ')[0]);
+        }
+
+        const keyPart = parsed?.id ?? parsed?.email;
+        if (keyPart) {
+          resolvedKey = `${STORAGE_PREFIX}:${String(keyPart)}`;
+        }
+      } catch {
+        // ignore invalid stored user data
+      }
+    }
+
+    setStorageKey(resolvedKey);
+
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(resolvedKey);
       const parsed = raw ? JSON.parse(raw) : [];
       const safeSessions = sanitizeSessions(parsed).sort(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -184,23 +379,9 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-  }, [sessions]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const rawUser = window.localStorage.getItem('user_data');
-    if (!rawUser) return;
-
-    try {
-      const parsed = JSON.parse(rawUser) as { name?: string };
-      if (parsed?.name) {
-        setUserName(parsed.name.split(' ')[0]);
-      }
-    } catch {
-      // ignore invalid stored user data
-    }
-  }, []);
+    if (!storageKey) return;
+    window.localStorage.setItem(storageKey, JSON.stringify(sessions));
+  }, [sessions, storageKey]);
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
@@ -208,8 +389,56 @@ export default function ChatPage() {
   );
 
   useEffect(() => {
+    activeSessionRef.current = activeSessionId;
+  }, [activeSessionId]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeSession?.messages.length]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!storageKey) return;
+
+    const token = window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
+    if (!token) return;
+
+    let isCancelled = false;
+
+    const fetchHistory = async () => {
+      try {
+        const response = await fetch('/api/chat/history', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data) return;
+
+        const remoteSessions = parseHistorySessions(data);
+        if (remoteSessions.length === 0) return;
+        if (isCancelled) return;
+
+        setSessions((prev) => {
+          const merged = mergeSessions(prev, remoteSessions);
+          if (!activeSessionRef.current && merged[0]) {
+            setActiveSessionId(merged[0].id);
+          }
+          return merged;
+        });
+      } catch {
+        // fallback to local persistence
+      }
+    };
+
+    fetchHistory();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [storageKey]);
 
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
@@ -266,6 +495,36 @@ export default function ChatPage() {
         };
       }),
     );
+  };
+
+  const handleSelectSession = (sessionId: string) => {
+    setActiveSessionId(sessionId);
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    setSessions((prev) => prev.filter((session) => session.id !== sessionId));
+
+    if (activeSessionId === sessionId) {
+      const nextSession = sessions.find((session) => session.id !== sessionId);
+      setActiveSessionId(nextSession?.id ?? null);
+    }
+
+    if (typeof window === 'undefined') return;
+    const token = window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
+    if (!token) return;
+
+    try {
+      await fetch(`/api/chat/delete?chat_id=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ chat_id: sessionId }),
+      });
+    } catch {
+      // ignore remote deletion errors
+    }
   };
 
   const handleNewChat = () => {
@@ -395,17 +654,42 @@ export default function ChatPage() {
                   sortedSessions.map((session, index) => {
                     const preview = buildHistoryPreview(session);
                     return (
-                      <button
+                      <div
                         key={session.id}
-                        type="button"
-                        onClick={() => setActiveSessionId(session.id)}
-                        className={`w-full rounded-[22px] border px-4 py-4 text-left shadow-[0_8px_18px_rgba(34,67,111,0.1)] transition ${
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectSession(session.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleSelectSession(session.id);
+                          }
+                        }}
+                        className={`relative w-full cursor-pointer rounded-[22px] border px-4 py-4 text-left shadow-[0_8px_18px_rgba(34,67,111,0.1)] transition ${
                           activeSessionId === session.id
                             ? 'border-[#b3c7da] bg-white'
                             : 'border-transparent bg-white/92 hover:bg-white'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteSession(session.id);
+                          }}
+                          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#9aa9bb] shadow-[0_6px_12px_rgba(34,67,111,0.12)] transition hover:text-[#ef4444]"
+                          aria-label="Excluir conversa"
+                          title="Excluir conversa"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M4 7H20" strokeLinecap="round" />
+                            <path d="M9 7V5H15V7" strokeLinecap="round" />
+                            <path d="M7 7L8 19H16L17 7" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M10 11V16M14 11V16" strokeLinecap="round" />
+                          </svg>
+                        </button>
+
+                        <div className="flex items-center gap-2 pr-8">
                           <span className={`h-2.5 w-2.5 rounded-full ${index % 2 === 0 ? 'bg-[#7fe28b]' : 'bg-[#8ec4ff]'}`} />
                           <div>
                             <p className="text-[13px] font-semibold text-[#1f2937]">{session.title}</p>
@@ -420,7 +704,7 @@ export default function ChatPage() {
                             </div>
                           ))}
                         </div>
-                      </button>
+                      </div>
                     );
                   })
                 )}
