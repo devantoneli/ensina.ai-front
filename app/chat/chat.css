@@ -70,11 +70,13 @@
   font-size: 1rem;
   font-weight: 500;
   text-align: left;
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.25s ease, color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .user-nav-button:hover {
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.85);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .user-nav-button--active {
@@ -134,12 +136,14 @@
   color: #2d3748;
   padding: 12px;
   text-align: left;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .user-history-card:hover,
 .user-trail-card:hover {
-  background: rgba(168, 216, 232, 0.45);
+  background: rgba(168, 216, 232, 0.65);
+  transform: translateX(4px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(34, 67, 111, 0.15);
 }
 
 .user-history-card--active,
@@ -179,6 +183,15 @@
   padding: 0 12px;
   font-size: 0.875rem;
   font-weight: 500;
+  transition: background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+  cursor: pointer;
+}
+
+.user-logout:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #dc2626;
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }
 
 .user-main {
@@ -239,10 +252,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.25s ease, transform 0.25s ease, color 0.25s ease;
 }
 
 .user-icon-button:hover {
-  background: rgba(91, 159, 201, 0.08);
+  background: rgba(91, 159, 201, 0.18);
+  transform: scale(1.12);
+  color: #5b7c99;
 }
 
 .user-message-area {
@@ -479,6 +495,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: pointer;
+}
+
+.user-send-button:hover:not(:disabled) {
+  background: #4a8baf;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(91, 159, 201, 0.4);
 }
 
 .user-send-button:disabled {
@@ -519,6 +543,14 @@
   gap: 8px;
   font-size: 0.875rem;
   font-weight: 500;
+  transition: background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: pointer;
+}
+
+.user-primary-button:hover:not(:disabled) {
+  background: #2e7aa8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(60, 145, 188, 0.35);
 }
 
 .user-primary-button:disabled {

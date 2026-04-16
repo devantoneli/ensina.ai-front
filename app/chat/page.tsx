@@ -601,7 +601,7 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#E1F0FC_-14.48%,#79B3E0_109.23%)]">
-      <ChatSidebar />
+      <ChatSidebar onNewChat={handleNewChat} />
 
       <main className="ml-[80px] min-h-screen">
         <div className="flex min-h-screen">

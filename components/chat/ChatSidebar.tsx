@@ -4,14 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-export default function ChatSidebar() {
+interface ChatSidebarProps {
+  onNewChat?: () => void;
+}
+
+export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileButtonRef = useRef<HTMLButtonElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const iconButton = 'flex h-14 w-14 items-center justify-center transition hover:scale-[1.03]';
+  const iconButton = 'flex h-14 w-14 items-center justify-center transition-all duration-200 hover:scale-[1.18] hover:drop-shadow-lg';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -81,7 +85,7 @@ export default function ChatSidebar() {
         </button>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-5">
-          <button type="button" className={iconButton} aria-label="Nova conversa">
+          <button type="button" className={iconButton} aria-label="Nova conversa" onClick={onNewChat}>
             <Image src="/assets/chat/new-chat.png" alt="Nova conversa" width={52} height={52} />
           </button>
           <button type="button" className={iconButton} aria-label="Mensagens">
