@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -12,6 +12,8 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileButtonRef = useRef<HTMLButtonElement | null>(null);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const iconButton = 'flex h-14 w-14 items-center justify-center transition-all duration-200 hover:scale-[1.18] hover:drop-shadow-lg';
 
@@ -21,6 +23,32 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
       Boolean(window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token')),
     );
   }, []);
+
+  useEffect(() => {
+    if (!isProfileOpen) return;
+
+    const handlePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (profileMenuRef.current?.contains(target)) return;
+      if (profileButtonRef.current?.contains(target)) return;
+      setIsProfileOpen(false);
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isProfileOpen]);
 
   const handleProfile = () => {
     if (!isLoggedIn) {
@@ -77,12 +105,21 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
             <Image src="/assets/chat/config.png" alt="Configuracoes" width={52} height={52} />
           </button>
 
-          <button type="button" onClick={handleProfile} className={iconButton} aria-label="Perfil">
+          <button
+            type="button"
+            onClick={handleProfile}
+            className={iconButton}
+            aria-label="Perfil"
+            ref={profileButtonRef}
+          >
             <Image src="/assets/chat/Perfil.png" alt="Perfil" width={52} height={52} />
           </button>
 
           {isProfileOpen && (
-            <div className="absolute left-[76px] bottom-0 w-52 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-xl">
+            <div
+              ref={profileMenuRef}
+              className="absolute left-[76px] bottom-0 w-52 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-xl"
+            >
               <button
                 type="button"
                 onClick={handleLogout}
