@@ -59,6 +59,33 @@ function parseHistoryItems(payload: unknown): HistoryItem[] {
     .slice(0, 8);
 }
 
+const STORAGE_PREFIX = 'ensina_ai_chat_sessions_v1';
+
+function parseLocalSessions(storageKey: string): HistoryItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((session: any) => ({
+      id: session.id,
+      title: session.title || 'Conversa sem título',
+      subtitle: formatPtDate(session.updatedAt || session.createdAt || new Date().toISOString()),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function mergeHistory(local: HistoryItem[], remote: HistoryItem[]): HistoryItem[] {
+  const map = new Map<string, HistoryItem>();
+  local.forEach((item) => map.set(item.id, item));
+  remote.forEach((item) => map.set(item.id, item));
+
+  return Array.from(map.values()).slice(0, 20);
+}
+
 export default function HistoryPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -78,6 +105,21 @@ export default function HistoryPage() {
     const loadHistory = async () => {
       if (typeof window === 'undefined') return;
 
+      let storageKey = `${STORAGE_PREFIX}:guest`;
+      const rawUser = window.localStorage.getItem('user_data');
+      if (rawUser) {
+        try {
+          const parsed = JSON.parse(rawUser);
+          const keyPart = parsed?.id ?? parsed?.email;
+          if (keyPart) {
+            storageKey = `${STORAGE_PREFIX}:${String(keyPart)}`;
+          }
+        } catch { /* ignore */ }
+      }
+
+      const localItems = parseLocalSessions(storageKey);
+      setHistoryItems(localItems);
+
       const token = window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
       if (!token) {
         setIsLoadingHistory(false);
@@ -94,13 +136,14 @@ export default function HistoryPage() {
 
         const data = await response.json().catch(() => null);
         if (!response.ok || !data) {
-          setHistoryItems([]);
+          setIsLoadingHistory(false);
           return;
         }
 
-        setHistoryItems(parseHistoryItems(data));
+        const remoteItems = parseHistoryItems(data);
+        setHistoryItems(mergeHistory(localItems, remoteItems));
       } catch {
-        setHistoryItems([]);
+        // stay with local items
       } finally {
         setIsLoadingHistory(false);
       }
@@ -164,7 +207,18 @@ export default function HistoryPage() {
             ) : (
               <div className="history-list">
                 {historyItems.map((item) => (
-                  <article key={item.id} className="history-item">
+                  <article
+                    key={item.id}
+                    className="history-item cursor-pointer hover:bg-black/5 transition-colors"
+                    onClick={() => router.push(`/chat?session_id=${item.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        router.push(`/chat?session_id=${item.id}`);
+                      }
+                    }}
+                  >
                     <div>
                       <p className="history-item-title">{item.title}</p>
                       <p className="history-item-subtitle">{item.subtitle}</p>

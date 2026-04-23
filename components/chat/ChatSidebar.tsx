@@ -167,11 +167,6 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     router.push('/history');
   };
 
-  const handleSimulados = () => {
-    setIsQuickMenuOpen(false);
-    router.push('/simulados');
-  };
-
   const handleChat = () => {
     setIsQuickMenuOpen(false);
     router.push('/chat');
@@ -289,7 +284,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
           <div className="mt-[12px] space-y-[8px]">
             <button
               type="button"
-              onClick={handleSimulados}
+              onClick={() => setIsQuickMenuOpen(false)}
               className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
             >
               Simulados

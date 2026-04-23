@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 
@@ -274,14 +274,15 @@ function buildSessionTitle(question: string): string {
 }
 
 function inferContentsFromQuestion(question: string): string[] {
+  const stopWords = ['sobre', 'para', 'como', 'onde', 'qual', 'quais', 'quem', 'pode', 'ajuda', 'ajudar', 'explicar', 'entender', 'fazer', 'feito', 'estou', 'estudar', 'estudo'];
   const normalized = question
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
-    .filter((word) => word.length > 3);
+    .filter((word) => word.length > 3 && !stopWords.includes(word));
 
   const unique = Array.from(new Set(normalized));
-  return unique.slice(0, 4).map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+  return unique.slice(0, 6).map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 }
 
 function formatAssistantReply(question: string, data: FreeModeResponse | null, ok: boolean): string {
@@ -328,17 +329,23 @@ function formatAssistantReply(question: string, data: FreeModeResponse | null, o
   return lines.join('\n');
 }
 
-export default function ChatPage() {
+function ChatContent() {
   const searchParams = useSearchParams();
   const shouldStartNewChat = searchParams.get('new') === '1';
+  const sessionIdFromQuery = searchParams.get('session_id');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [userName, setUserName] = useState('');
   const [storageKey, setStorageKey] = useState('');
+  const [contentIndex, setContentIndex] = useState(0);
   const endRef = useRef<HTMLDivElement | null>(null);
   const activeSessionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setContentIndex(0);
+  }, [activeSessionId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -373,26 +380,32 @@ export default function ChatPage() {
       );
 
       setSessions(safeSessions);
-      setActiveSessionId(shouldStartNewChat ? null : (safeSessions[0]?.id ?? null));
+
       if (shouldStartNewChat) {
+        setActiveSessionId(null);
         setInput('');
+      } else if (sessionIdFromQuery) {
+        setActiveSessionId(sessionIdFromQuery);
+      } else {
+        setActiveSessionId(safeSessions[0]?.id ?? null);
       }
     } catch {
       setSessions([]);
       setActiveSessionId(null);
     }
-  }, [shouldStartNewChat]);
+  }, [shouldStartNewChat, sessionIdFromQuery]);
 
   useEffect(() => {
-    if (!shouldStartNewChat || typeof window === 'undefined') return;
+    if ((!shouldStartNewChat && !sessionIdFromQuery) || typeof window === 'undefined') return;
 
     const url = new URL(window.location.href);
     url.searchParams.delete('new');
+    url.searchParams.delete('session_id');
 
     const queryString = url.searchParams.toString();
     const nextPath = queryString ? `${url.pathname}?${queryString}` : url.pathname;
     window.history.replaceState({}, '', nextPath);
-  }, [shouldStartNewChat]);
+  }, [shouldStartNewChat, sessionIdFromQuery]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -469,7 +482,7 @@ export default function ChatPage() {
   const displayedContents = activeContents.length > 0 ? activeContents.slice(0, 4) : fallbackContents;
   const activeDiscipline = activeSession?.latestAnalysis?.classification?.discipline ?? 'Materia';
   const contentSubtitle = displayedContents[0] ?? 'Aguardando conteudos';
-  const spotlightTitle = displayedContents[1] ?? displayedContents[0] ?? 'Seu proximo conteudo aparece aqui';
+  const spotlightTitle = displayedContents[contentIndex] ?? displayedContents[0] ?? 'Seu proximo conteudo aparece aqui';
   const dotCount = Math.max(displayedContents.length, 5);
   const hasMessages = (activeSession?.messages.length ?? 0) > 0;
   const headerTitle = hasMessages ? activeSession?.title ?? 'Nova conversa' : 'No que voce esta pensando hoje?';
@@ -639,11 +652,21 @@ export default function ChatPage() {
 
                 <div className="mt-4 min-h-[108px] rounded-[22px] bg-[#7341b0] px-4 py-4 text-white shadow-[0_12px_22px_rgba(93,54,150,0.24)]">
                   <div className="flex items-center justify-between">
-                    <button type="button" className="text-lg leading-none opacity-80" aria-label="Anterior">
+                    <button
+                      type="button"
+                      className="text-lg leading-none opacity-80"
+                      aria-label="Anterior"
+                      onClick={() => setContentIndex((prev) => (prev > 0 ? prev - 1 : displayedContents.length - 1))}
+                    >
                       {'<'}
                     </button>
                     <p className="max-w-[180px] text-center text-sm font-semibold leading-5">{spotlightTitle}</p>
-                    <button type="button" className="text-lg leading-none opacity-80" aria-label="Proximo">
+                    <button
+                      type="button"
+                      className="text-lg leading-none opacity-80"
+                      aria-label="Proximo"
+                      onClick={() => setContentIndex((prev) => (prev < displayedContents.length - 1 ? prev + 1 : 0))}
+                    >
                       {'>'}
                     </button>
                   </div>
@@ -652,7 +675,7 @@ export default function ChatPage() {
                     {Array.from({ length: dotCount }).map((_, index) => (
                       <span
                         key={`dot-${index}`}
-                        className={`h-2.5 w-2.5 rounded-full ${index === 0 ? 'bg-[#ef7c4d]' : 'bg-[#f2e5f8]'}`}
+                        className={`h-2.5 w-2.5 rounded-full ${index === contentIndex ? 'bg-[#ef7c4d]' : 'bg-[#f2e5f8]'}`}
                       />
                     ))}
                   </div>
@@ -828,6 +851,14 @@ export default function ChatPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatContent />
+    </Suspense>
   );
 }
 
