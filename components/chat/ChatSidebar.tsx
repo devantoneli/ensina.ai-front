@@ -12,8 +12,11 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
   const profileButtonRef = useRef<HTMLButtonElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const quickMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const quickMenuRef = useRef<HTMLDivElement | null>(null);
 
   const iconButton = 'flex h-14 w-14 items-center justify-center transition-all duration-200 hover:scale-[1.18] hover:drop-shadow-lg';
 
@@ -50,12 +53,44 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     };
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    if (!isQuickMenuOpen) return;
+
+    const handlePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (quickMenuRef.current?.contains(target)) return;
+      if (quickMenuButtonRef.current?.contains(target)) return;
+      setIsQuickMenuOpen(false);
+    };
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsQuickMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isQuickMenuOpen]);
+
   const handleProfile = () => {
     if (!isLoggedIn) {
       router.push('/login');
       return;
     }
+    setIsQuickMenuOpen(false);
     setIsProfileOpen((prev) => !prev);
+  };
+
+  const handleQuickMenu = () => {
+    setIsProfileOpen(false);
+    setIsQuickMenuOpen((prev) => !prev);
   };
 
   const handleConfig = () => {
@@ -95,7 +130,13 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
           <button type="button" className={iconButton} aria-label="Mensagens">
             <Image src="/assets/chat/chat.png" alt="Mensagens" width={52} height={52} />
           </button>
-          <button type="button" className={iconButton} aria-label="Conteudos">
+          <button
+            type="button"
+            className={iconButton}
+            aria-label="Conteudos"
+            onClick={handleQuickMenu}
+            ref={quickMenuButtonRef}
+          >
             <Image src="/assets/chat/triagem.png" alt="Conteudos" width={52} height={52} />
           </button>
         </div>
@@ -131,6 +172,38 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
           )}
         </div>
       </div>
+
+      {isQuickMenuOpen && (
+        <div
+          ref={quickMenuRef}
+          className="absolute left-[86px] top-1/2 z-40 w-[260px] -translate-y-1/2 rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-[0_16px_30px_rgba(34,67,111,0.2)]"
+        >
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8a9bb2]">Acesso rapido</p>
+          <div className="mt-3 space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsQuickMenuOpen(false)}
+              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
+            >
+              Simulados
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsQuickMenuOpen(false)}
+              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
+            >
+              Historico de conversas
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsQuickMenuOpen(false)}
+              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
+            >
+              Desempenho
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
