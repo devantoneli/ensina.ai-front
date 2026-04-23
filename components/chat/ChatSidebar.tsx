@@ -151,6 +151,27 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     router.push('/config');
   };
 
+  const handleNewChatClick = () => {
+    setIsQuickMenuOpen(false);
+
+    if (pathname === '/chat' && onNewChat) {
+      onNewChat();
+      return;
+    }
+
+    router.push('/chat?new=1');
+  };
+
+  const handleHistory = () => {
+    setIsQuickMenuOpen(false);
+    router.push('/history');
+  };
+
+  const handleChat = () => {
+    setIsQuickMenuOpen(false);
+    router.push('/chat');
+  };
+
   const handleBack = () => {
     if (typeof window !== 'undefined') {
       const previousRoute = window.sessionStorage.getItem('ensina_ai_previous_route');
@@ -196,10 +217,10 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
         </button>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-[20px]">
-          <button type="button" className={iconButton} aria-label="Nova conversa" onClick={onNewChat}>
+          <button type="button" className={iconButton} aria-label="Nova conversa" onClick={handleNewChatClick}>
             <Image src="/assets/chat/new-chat.png" alt="Nova conversa" width={52} height={52} />
           </button>
-          <button type="button" className={iconButton} aria-label="Mensagens">
+          <button type="button" className={iconButton} aria-label="Mensagens" onClick={handleChat}>
             <Image src="/assets/chat/chat.png" alt="Mensagens" width={52} height={52} />
           </button>
           <button
@@ -270,14 +291,14 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
             </button>
             <button
               type="button"
-              onClick={() => setIsQuickMenuOpen(false)}
+              onClick={handleHistory}
               className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
             >
               Historico de conversas
             </button>
             <button
               type="button"
-              onClick={() => setIsQuickMenuOpen(false)}
+              onClick={handleChat}
               className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
             >
               Desempenho

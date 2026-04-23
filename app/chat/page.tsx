@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 
 type ChatMessage = {
@@ -328,6 +329,8 @@ function formatAssistantReply(question: string, data: FreeModeResponse | null, o
 }
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
+  const shouldStartNewChat = searchParams.get('new') === '1';
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -370,12 +373,26 @@ export default function ChatPage() {
       );
 
       setSessions(safeSessions);
-      setActiveSessionId(safeSessions[0]?.id ?? null);
+      setActiveSessionId(shouldStartNewChat ? null : (safeSessions[0]?.id ?? null));
+      if (shouldStartNewChat) {
+        setInput('');
+      }
     } catch {
       setSessions([]);
       setActiveSessionId(null);
     }
-  }, []);
+  }, [shouldStartNewChat]);
+
+  useEffect(() => {
+    if (!shouldStartNewChat || typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('new');
+
+    const queryString = url.searchParams.toString();
+    const nextPath = queryString ? `${url.pathname}?${queryString}` : url.pathname;
+    window.history.replaceState({}, '', nextPath);
+  }, [shouldStartNewChat]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
