@@ -48,6 +48,7 @@ function sanitizeMockUser(user: MockStoredUser): User {
     id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone,
     role: user.role,
     created_at: user.created_at,
     updated_at: user.updated_at,
@@ -112,13 +113,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
   // mantém explícito no console para facilitar debug
   // (erro de tela já tratado no register.tsx)
-  // eslint-disable-next-line no-console
   console.warn('NEXT_PUBLIC_API_URL não definida');
 }
 
 type RegisterPayload = {
   name: string;
   email: string;
+  phone?: string;
   password: string;
   role: 'student' | 'admin';
 };

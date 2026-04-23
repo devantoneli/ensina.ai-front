@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --app-root-font-size: 16px;
 }
 
 @theme inline {
@@ -19,8 +20,20 @@
   }
 }
 
+html {
+  font-size: var(--app-root-font-size);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+html[data-animations='off'] *,
+html[data-animations='off'] *::before,
+html[data-animations='off'] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
 }

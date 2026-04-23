@@ -7,6 +7,98 @@ import { authService } from '@/services/authService';
 import './config.css';
 
 type ConfigSection = 'profile' | 'notifications' | 'security' | 'appearance' | 'privacy' | 'about';
+type FontSizeOption = 'small' | 'normal' | 'large';
+
+const FONT_SIZE_STORAGE_KEY = 'ensina_ai_font_size';
+const CONFIG_PREFS_STORAGE_KEY = 'ensina_ai_config_preferences';
+const USER_DATA_UPDATED_EVENT = 'ensina_ai_user_data_updated';
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const APP_ANIMATIONS_ATTRIBUTE = 'data-animations';
+
+const FONT_SIZE_MAP: Record<FontSizeOption, string> = {
+  small: '15px',
+  normal: '16px',
+  large: '18px',
+};
+
+function isFontSizeOption(value: string): value is FontSizeOption {
+  return value === 'small' || value === 'normal' || value === 'large';
+}
+
+function applyRootFontSize(option: FontSizeOption): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.style.setProperty('--app-root-font-size', FONT_SIZE_MAP[option]);
+}
+
+function getInitialFontSize(): FontSizeOption {
+  if (typeof window === 'undefined') return 'normal';
+
+  const stored = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
+  return stored && isFontSizeOption(stored) ? stored : 'normal';
+}
+
+function parseErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== 'object') return fallback;
+
+  const data = payload as {
+    message?: string;
+    detail?: string | Array<{ msg?: string }>;
+    error?: string;
+  };
+
+  if (typeof data.message === 'string' && data.message.trim()) return data.message;
+  if (typeof data.error === 'string' && data.error.trim()) return data.error;
+
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    const msg = data.detail
+      .map((item) => item?.msg)
+      .filter(Boolean)
+      .join(' | ');
+
+    if (msg) return msg;
+  }
+
+  if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+  return fallback;
+}
+
+function extractAvatarUrl(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') return '';
+
+  const source = payload as Record<string, unknown>;
+  const candidates = [
+    source.avatar,
+    source.avatar_url,
+    source.avatarUrl,
+    source.profile_image,
+    source.profileImage,
+    (source.user as Record<string, unknown> | undefined)?.avatar,
+    (source.user as Record<string, unknown> | undefined)?.avatar_url,
+    (source.user_data as Record<string, unknown> | undefined)?.avatar,
+    (source.user_data as Record<string, unknown> | undefined)?.avatar_url,
+    (source.data as Record<string, unknown> | undefined)?.avatar,
+    (source.data as Record<string, unknown> | undefined)?.avatar_url,
+    (source.data as Record<string, unknown> | undefined)?.avatarUrl,
+  ];
+
+  for (const item of candidates) {
+    if (typeof item === 'string' && item.trim()) {
+      return item;
+    }
+  }
+
+  return '';
+}
+
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
 
 interface UserProfile {
   name: string;
@@ -16,10 +108,57 @@ interface UserProfile {
   avatar?: string;
 }
 
-function BackIcon() {
+interface ConfigPreferences {
+  notificationsEmail: boolean;
+  notificationsContentUpdates: boolean;
+  notificationsStudyReminders: boolean;
+  securityTwoFactor: boolean;
+  appearanceAnimations: boolean;
+  privacyDataCollection: boolean;
+  privacyDataAnalysis: boolean;
+}
+
+const DEFAULT_CONFIG_PREFERENCES: ConfigPreferences = {
+  notificationsEmail: true,
+  notificationsContentUpdates: true,
+  notificationsStudyReminders: false,
+  securityTwoFactor: false,
+  appearanceAnimations: true,
+  privacyDataCollection: true,
+  privacyDataAnalysis: true,
+};
+
+function getInitialConfigPreferences(): ConfigPreferences {
+  if (typeof window === 'undefined') return DEFAULT_CONFIG_PREFERENCES;
+
+  try {
+    const raw = window.localStorage.getItem(CONFIG_PREFS_STORAGE_KEY);
+    if (!raw) return DEFAULT_CONFIG_PREFERENCES;
+
+    const parsed = JSON.parse(raw) as Partial<ConfigPreferences>;
+    return {
+      ...DEFAULT_CONFIG_PREFERENCES,
+      ...parsed,
+    };
+  } catch {
+    return DEFAULT_CONFIG_PREFERENCES;
+  }
+}
+
+function applyAnimationsPreference(enabled: boolean): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute(APP_ANIMATIONS_ATTRIBUTE, enabled ? 'on' : 'off');
+}
+
+function getProfileInitial(name: string): string {
+  return name.trim().charAt(0).toUpperCase();
+}
+
+function UserAvatarIcon() {
   return (
-    <svg className="config-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className="config-avatar-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5.5 19C6.69939 15.9514 9.06953 14.5 12 14.5C14.9305 14.5 17.3006 15.9514 18.5 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -87,7 +226,11 @@ export default function ConfigPage() {
     phone: '',
     city: '',
   });
+  const [fontSize, setFontSize] = useState<FontSizeOption>(getInitialFontSize);
+  const [preferences, setPreferences] = useState<ConfigPreferences>(getInitialConfigPreferences);
   const [hasChanged, setHasChanged] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarUploadError, setAvatarUploadError] = useState('');
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -98,6 +241,7 @@ export default function ConfigPage() {
     // Load user data from localStorage
     if (typeof window !== 'undefined') {
       const userData = window.localStorage.getItem('user_data');
+
       if (userData) {
         try {
           const parsed = JSON.parse(userData);
@@ -105,7 +249,7 @@ export default function ConfigPage() {
             setProfile({
               name: parsed.name || '',
               email: parsed.email || '',
-              phone: parsed.phone || '',
+              phone: formatPhone(parsed.phone || ''),
               city: parsed.city || '',
               avatar: parsed.avatar,
             });
@@ -121,13 +265,29 @@ export default function ConfigPage() {
     });
   }, [router]);
 
+  useEffect(() => {
+    applyRootFontSize(fontSize);
+  }, [fontSize]);
+
+  useEffect(() => {
+    applyAnimationsPreference(preferences.appearanceAnimations);
+  }, [preferences.appearanceAnimations]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(CONFIG_PREFS_STORAGE_KEY, JSON.stringify(preferences));
+  }, [preferences]);
+
   if (!isAuthorized) {
     return null;
   }
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
+    setProfile((prev) => ({
+      ...prev,
+      [name]: name === 'phone' ? formatPhone(value) : value,
+    }));
     setHasChanged(true);
   };
 
@@ -137,12 +297,98 @@ export default function ConfigPage() {
       const parsed = userData ? JSON.parse(userData) : {};
       const updated = { ...parsed, ...profile };
       window.localStorage.setItem('user_data', JSON.stringify(updated));
+      window.dispatchEvent(new Event(USER_DATA_UPDATED_EVENT));
       setHasChanged(false);
     }
   };
 
-  const handleBack = () => {
-    router.back();
+  const handleAvatarUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploadError('');
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarUploadError('Selecione um arquivo de imagem válido.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarUploadError('A imagem deve ter no máximo 2MB.');
+      e.target.value = '';
+      return;
+    }
+
+    if (typeof window === 'undefined') return;
+
+    const token = window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
+    if (!token) {
+      setAvatarUploadError('Faça login novamente para atualizar o avatar.');
+      e.target.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    setIsUploadingAvatar(true);
+
+    try {
+      const response = await fetch('/api/users/avatar', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(parseErrorMessage(data, `Erro ${response.status} ao enviar avatar.`));
+      }
+
+      const avatarUrl = extractAvatarUrl(data);
+      if (!avatarUrl) {
+        throw new Error('Upload concluído, mas o backend não retornou a URL do avatar.');
+      }
+
+      setProfile((prev) => {
+        const updatedProfile = { ...prev, avatar: avatarUrl };
+
+        const userData = window.localStorage.getItem('user_data');
+        const parsed = userData ? JSON.parse(userData) : {};
+        window.localStorage.setItem('user_data', JSON.stringify({ ...parsed, ...updatedProfile }));
+        window.dispatchEvent(new Event(USER_DATA_UPDATED_EVENT));
+
+        return updatedProfile;
+      });
+    } catch (error: unknown) {
+      setAvatarUploadError(error instanceof Error ? error.message : 'Não foi possível enviar o avatar.');
+    } finally {
+      setIsUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleFontSizeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const nextSize = e.target.value;
+    if (!isFontSizeOption(nextSize)) return;
+
+    setFontSize(nextSize);
+    applyRootFontSize(nextSize);
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, nextSize);
+    }
+  };
+
+  const handlePreferenceToggle = (key: keyof ConfigPreferences) => {
+    setPreferences((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const menuItems: Array<{ id: ConfigSection; label: string; icon: React.ReactNode }> = [
@@ -160,9 +406,6 @@ export default function ConfigPage() {
 
       <main className="config-main">
         <div className="config-header">
-          <button type="button" className="config-back-button" onClick={handleBack} aria-label="Voltar">
-            <BackIcon />
-          </button>
           <div className="config-header-content">
             <h1 className="config-title">Configurações</h1>
             <p className="config-subtitle">Gerencie suas preferências e informações pessoais</p>
@@ -195,21 +438,31 @@ export default function ConfigPage() {
                     {profile.avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={profile.avatar} alt="Avatar" />
+                    ) : getProfileInitial(profile.name) ? (
+                      <span className="config-avatar-initials">{getProfileInitial(profile.name)}</span>
                     ) : (
-                      <span className="config-avatar-initials">{profile.name?.charAt(0).toUpperCase() || 'M'}</span>
+                      <UserAvatarIcon />
                     )}
                   </div>
                   <label htmlFor="avatar-upload" className="config-upload-button">
-                    <span>📷 Alterar foto</span>
-                    <input id="avatar-upload" type="file" accept="image/*" style={{ display: 'none' }} />
+                    <span>{isUploadingAvatar ? 'Enviando...' : 'Alterar foto'}</span>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleAvatarUpload}
+                      disabled={isUploadingAvatar}
+                    />
                   </label>
                   <p className="config-upload-hint">JPG, PNG ou GIF. Máx 2MB</p>
+                  {avatarUploadError && <p className="config-upload-error">{avatarUploadError}</p>}
                 </div>
 
                 <div className="config-form">
                   <div className="config-form-row">
                     <div className="config-form-group">
-                      <label htmlFor="name">👤 Nome completo</label>
+                      <label htmlFor="name">Nome completo</label>
                       <input
                         id="name"
                         type="text"
@@ -220,7 +473,7 @@ export default function ConfigPage() {
                       />
                     </div>
                     <div className="config-form-group">
-                      <label htmlFor="email">📧 Email</label>
+                      <label htmlFor="email">Email</label>
                       <input
                         id="email"
                         type="email"
@@ -235,7 +488,7 @@ export default function ConfigPage() {
 
                   <div className="config-form-row">
                     <div className="config-form-group">
-                      <label htmlFor="phone">☎️ Telefone</label>
+                      <label htmlFor="phone">Telefone</label>
                       <input
                         id="phone"
                         type="tel"
@@ -246,7 +499,7 @@ export default function ConfigPage() {
                       />
                     </div>
                     <div className="config-form-group">
-                      <label htmlFor="city">📍 Cidade</label>
+                      <label htmlFor="city">Cidade</label>
                       <input
                         id="city"
                         type="text"
@@ -265,7 +518,7 @@ export default function ConfigPage() {
                   disabled={!hasChanged}
                   className="config-save-button"
                 >
-                  💾 Salvar alterações
+                  Salvar alterações
                 </button>
               </div>
             )}
@@ -278,7 +531,11 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Notificações por email</h3>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={preferences.notificationsEmail}
+                      onChange={() => handlePreferenceToggle('notificationsEmail')}
+                    />
                   </div>
                   <p>Receba notificações sobre suas atividades e progresso</p>
                 </div>
@@ -286,7 +543,11 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Atualizações de conteúdo</h3>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={preferences.notificationsContentUpdates}
+                      onChange={() => handlePreferenceToggle('notificationsContentUpdates')}
+                    />
                   </div>
                   <p>Seja notificado quando novo conteúdo for adicionado às suas áreas de interesse</p>
                 </div>
@@ -294,7 +555,11 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Lembretes de estudo</h3>
-                    <input type="checkbox" />
+                    <input
+                      type="checkbox"
+                      checked={preferences.notificationsStudyReminders}
+                      onChange={() => handlePreferenceToggle('notificationsStudyReminders')}
+                    />
                   </div>
                   <p>Receba lembretes para manter sua sequência de estudos</p>
                 </div>
@@ -318,7 +583,11 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Autenticação de dois fatores</h3>
-                    <input type="checkbox" />
+                    <input
+                      type="checkbox"
+                      checked={preferences.securityTwoFactor}
+                      onChange={() => handlePreferenceToggle('securityTwoFactor')}
+                    />
                   </div>
                   <p>Adicione uma camada extra de segurança à sua conta</p>
                 </div>
@@ -354,17 +623,21 @@ export default function ConfigPage() {
                   <div className="config-option-header">
                     <h3>Tamanho da fonte</h3>
                   </div>
-                  <select className="config-select">
-                    <option>Pequeno</option>
-                    <option>Normal (padrão)</option>
-                    <option>Grande</option>
+                  <select className="config-select" value={fontSize} onChange={handleFontSizeChange}>
+                    <option value="small">Pequeno</option>
+                    <option value="normal">Normal (padrão)</option>
+                    <option value="large">Grande</option>
                   </select>
                 </div>
 
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Animações</h3>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={preferences.appearanceAnimations}
+                      onChange={() => handlePreferenceToggle('appearanceAnimations')}
+                    />
                   </div>
                   <p>Mostrar animações e transições</p>
                 </div>
@@ -379,7 +652,11 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Coleta de dados</h3>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={preferences.privacyDataCollection}
+                      onChange={() => handlePreferenceToggle('privacyDataCollection')}
+                    />
                   </div>
                   <p>Permitir que coletemos dados para melhorar sua experiência</p>
                 </div>
@@ -387,7 +664,11 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Análise de dados</h3>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={preferences.privacyDataAnalysis}
+                      onChange={() => handlePreferenceToggle('privacyDataAnalysis')}
+                    />
                   </div>
                   <p>Compartilhar dados anônimos para análise e pesquisa</p>
                 </div>

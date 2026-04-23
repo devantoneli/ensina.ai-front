@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'student' | 'admin'>('student');
@@ -26,7 +27,9 @@ export default function RegisterPage() {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
 
-    if (!trimmedName || !trimmedEmail || !password || !confirmPassword) {
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedPhone || !password || !confirmPassword) {
       setError('Por favor, preencha todos os campos');
       return;
     }
@@ -56,6 +59,7 @@ export default function RegisterPage() {
     const payload = {
       name: trimmedName,
       email: trimmedEmail,
+      phone: trimmedPhone,
       password,
       role,
     };
@@ -81,6 +85,17 @@ export default function RegisterPage() {
       }
 
       if (typeof window !== 'undefined') {
+        const now = new Date().toISOString();
+        const userData = {
+          id: String(responseData?.id ?? `register-${Date.now()}`),
+          name: trimmedName,
+          email: trimmedEmail,
+          phone: trimmedPhone,
+          role,
+          created_at: now,
+          updated_at: now,
+        };
+
         window.sessionStorage.setItem('registered_email', trimmedEmail);
         window.sessionStorage.setItem('last_login_email', trimmedEmail);
         window.sessionStorage.setItem('just_registered', '1');
@@ -88,6 +103,8 @@ export default function RegisterPage() {
         if (responseData?.id !== undefined) {
           window.sessionStorage.setItem('last_registered_user_id', String(responseData.id));
         }
+
+        window.localStorage.setItem('user_data', JSON.stringify(userData));
       }
 
       console.info('[register] usuário criado com sucesso', {
@@ -215,6 +232,27 @@ export default function RegisterPage() {
                   className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
                   disabled={isLoading}
                   autoComplete="email"
+                />
+              </div>
+
+              {/* Telefone */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="phone" className="flex items-center gap-2 text-sm font-medium text-[#2d3748]">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 2.5h2l1 3-1.3.8a8.5 8.5 0 0 0 3.4 3.4l.8-1.3 3 1v2c0 .6-.4 1.1-1 1.1C7 12.5 3.5 9 3.5 4c0-.6.5-1.5.5-1.5Z" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Telefone
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(11) 98765-4321"
+                  className="w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                  disabled={isLoading}
+                  autoComplete="tel"
                 />
               </div>
 
