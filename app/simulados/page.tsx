@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import './simulados.css';
-import { Simulado } from '@/types/simulados';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import { Simulado } from '@/types/simulados';
+import './simulados.css';
 
-// Dados de exemplo - substituir por chamada à API
+type NivelFiltro = 'Todos' | 'Fácil' | 'Médio' | 'Difícil';
+type TempoFiltro = 'Todos' | 'Ate20' | '21-35' | '36+';
+type QuestoesFiltro = 'Todas' | 'Ate10' | '11-15' | '16+';
+
 const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '1',
     titulo: 'Gramática - Crase e Preposições',
-    descricao: 'Teste seus conhecimentos sobre crase e preposições',
+    descricao: 'Teste seus conhecimentos sobre crase, regência e o uso correto das preposições.',
     nivel: 'Médio',
     questoes: 10,
     tempoEstimado: 30,
@@ -20,7 +23,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '2',
     titulo: 'Pontuação - Vírgulas e Pontos',
-    descricao: 'Aprenda os usos corretos de pontuação',
+    descricao: 'Pratique os usos mais comuns da pontuação em textos formais e informais.',
     nivel: 'Fácil',
     questoes: 8,
     tempoEstimado: 20,
@@ -29,7 +32,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '3',
     titulo: 'Ortografia - Palavras Difíceis',
-    descricao: 'Domine as palavras mais desafiadoras',
+    descricao: 'Resolva questões sobre grafia, acentuação e palavras que geram dúvida.',
     nivel: 'Difícil',
     questoes: 15,
     tempoEstimado: 45,
@@ -38,7 +41,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '4',
     titulo: 'Acentuação Gráfica',
-    descricao: 'Regras de acentuação da língua portuguesa',
+    descricao: 'Fixe as regras de acentuação com exercícios práticos e objetivos.',
     nivel: 'Médio',
     questoes: 12,
     tempoEstimado: 35,
@@ -47,7 +50,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '5',
     titulo: 'Concordância Verbal e Nominal',
-    descricao: 'Aprenda sobre concordância na língua portuguesa',
+    descricao: 'Aprofunde a concordância entre termos na frase com exemplos do dia a dia.',
     nivel: 'Difícil',
     questoes: 14,
     tempoEstimado: 40,
@@ -56,7 +59,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '6',
     titulo: 'Interpretação de Textos',
-    descricao: 'Desenvolva suas habilidades de leitura e compreensão',
+    descricao: 'Treine leitura, inferência e compreensão textual com situações reais.',
     nivel: 'Médio',
     questoes: 10,
     tempoEstimado: 30,
@@ -65,7 +68,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '7',
     titulo: 'Verbos - Conjugação Completa',
-    descricao: 'Domine a conjugação verbal em português',
+    descricao: 'Domine tempos verbais e conjugações mais cobradas em prova.',
     nivel: 'Médio',
     questoes: 16,
     tempoEstimado: 45,
@@ -74,7 +77,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '8',
     titulo: 'Pronomes e suas Funções',
-    descricao: 'Entenda todos os tipos de pronomes',
+    descricao: 'Entenda os pronomes pessoais, possessivos, demonstrativos e seus usos.',
     nivel: 'Fácil',
     questoes: 10,
     tempoEstimado: 25,
@@ -83,7 +86,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '9',
     titulo: 'Figuras de Linguagem',
-    descricao: 'Identifique e compreenda recursos estilísticos',
+    descricao: 'Identifique recursos expressivos e interprete efeitos de sentido.',
     nivel: 'Difícil',
     questoes: 12,
     tempoEstimado: 40,
@@ -92,7 +95,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   {
     id: '10',
     titulo: 'Semântica - Sinônimos e Antônimos',
-    descricao: 'Amplie seu vocabulário',
+    descricao: 'Amplie o vocabulário e avance na leitura de contexto e significado.',
     nivel: 'Fácil',
     questoes: 10,
     tempoEstimado: 20,
@@ -100,145 +103,376 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
   },
 ];
 
+const NIVEL_OPTIONS: NivelFiltro[] = ['Todos', 'Fácil', 'Médio', 'Difícil'];
+const MATERIA_OPTIONS = [
+  'Todas',
+  ...Array.from(new Set(SIMULADOS_EXEMPLO.map((simulado) => simulado.categoria))).sort(),
+];
+const TEMPO_OPTIONS: Array<{ value: TempoFiltro; label: string }> = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'Ate20', label: 'Até 20 min' },
+  { value: '21-35', label: '21-35 min' },
+  { value: '36+', label: '36+ min' },
+];
+const QUESTOES_OPTIONS: Array<{ value: QuestoesFiltro; label: string }> = [
+  { value: 'Todas', label: 'Todas' },
+  { value: 'Ate10', label: 'Até 10' },
+  { value: '11-15', label: '11-15' },
+  { value: '16+', label: '16+' },
+];
+
+function levelToPathSegment(level: string): string {
+  return level
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M16 16L20 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 6H20M7 12H17M10 18H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 7L17 17M17 7L7 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 4.5H18.5C19.3284 4.5 20 5.17157 20 6V19.5H7.5C6.11929 19.5 5 18.3807 5 17V6.5C5 5.39543 5.89543 4.5 7 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M7.5 19.5H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 8.5H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 11.5H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 8V12L15 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function QuestionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9.5 9.5C9.5 7.567 11.067 6 13 6C14.933 6 16.5 7.567 16.5 9.5C16.5 11.1055 15.4164 12.4747 13.9 12.8719C12.7923 13.1622 12 14.162 12 15.3077V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function SimuladosPage() {
   const router = useRouter();
-  const [simulados, setSimulados] = useState<Simulado[]>(SIMULADOS_EXEMPLO);
   const [busca, setBusca] = useState('');
-  const [filtroNivel, setFiltroNivel] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [filtroNivel, setFiltroNivel] = useState<NivelFiltro>('Todos');
+  const [filtroMateria, setFiltroMateria] = useState('Todas');
+  const [filtroTempo, setFiltroTempo] = useState<TempoFiltro>('Todos');
+  const [filtroQuestoes, setFiltroQuestoes] = useState<QuestoesFiltro>('Todas');
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  // Filtrar simulados baseado em busca e nível
-  const simuladosFiltrados = simulados.filter((sim) => {
-    const matchBusca =
-      sim.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-      sim.descricao.toLowerCase().includes(busca.toLowerCase()) ||
-      sim.categoria.toLowerCase().includes(busca.toLowerCase());
-
-    const matchNivel = !filtroNivel || sim.nivel === filtroNivel;
-
-    return matchBusca && matchNivel;
-  });
-
-  const handleIniciarSimulado = (id: string) => {
-    // Aqui você pode adicionar lógica de navegação para o simulado específico
-    router.push(`/simulados/${id}`);
+  const clearFilters = () => {
+    setBusca('');
+    setFiltroNivel('Todos');
+    setFiltroMateria('Todas');
+    setFiltroTempo('Todos');
+    setFiltroQuestoes('Todas');
   };
 
-  const getNivelColor = (nivel: string) => {
+  const simuladosFiltrados = useMemo(() => {
+    const query = busca.trim().toLowerCase();
+
+    return SIMULADOS_EXEMPLO.filter((simulado) => {
+      const matchBusca =
+        !query ||
+        simulado.titulo.toLowerCase().includes(query) ||
+        simulado.descricao.toLowerCase().includes(query) ||
+        simulado.categoria.toLowerCase().includes(query);
+
+      const matchNivel = filtroNivel === 'Todos' || simulado.nivel === filtroNivel;
+      const matchMateria = filtroMateria === 'Todas' || simulado.categoria === filtroMateria;
+      const matchTempo =
+        filtroTempo === 'Todos' ||
+        (filtroTempo === 'Ate20' && simulado.tempoEstimado <= 20) ||
+        (filtroTempo === '21-35' && simulado.tempoEstimado >= 21 && simulado.tempoEstimado <= 35) ||
+        (filtroTempo === '36+' && simulado.tempoEstimado >= 36);
+      const matchQuestoes =
+        filtroQuestoes === 'Todas' ||
+        (filtroQuestoes === 'Ate10' && simulado.questoes <= 10) ||
+        (filtroQuestoes === '11-15' && simulado.questoes >= 11 && simulado.questoes <= 15) ||
+        (filtroQuestoes === '16+' && simulado.questoes >= 16);
+
+      return matchBusca && matchNivel && matchMateria && matchTempo && matchQuestoes;
+    });
+  }, [busca, filtroNivel, filtroMateria, filtroTempo, filtroQuestoes]);
+
+  const totalFiltrados = simuladosFiltrados.length;
+  const totalMaterias = new Set(simuladosFiltrados.map((simulado) => simulado.categoria)).size;
+  const totalQuestoes = simuladosFiltrados.reduce((acc, simulado) => acc + simulado.questoes, 0);
+
+  const getNivelClass = (nivel: string) => {
     switch (nivel) {
       case 'Fácil':
-        return '#10b981';
+        return 'simulado-card-badge--easy';
       case 'Médio':
-        return '#4791DF';
+        return 'simulado-card-badge--medium';
       case 'Difícil':
-        return '#ef4444';
+        return 'simulado-card-badge--hard';
       default:
-        return '#6b7280';
+        return '';
     }
   };
 
+  const handleIniciarSimulado = (id: string) => {
+    const simulado = SIMULADOS_EXEMPLO.find((item) => item.id === id);
+    if (!simulado) return;
+
+    router.push(`/simulados/${encodeURIComponent(simulado.titulo)}/${levelToPathSegment(simulado.nivel)}`);
+  };
+
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#E1F0FC_-14.48%,#79B3E0_109.23%)]">
+    <div className="simulados-page">
       <ChatSidebar />
-      <main className="ml-[80px] min-h-screen">
-        <div className="simulados-content">
-          {/* Header */}
-          <div className="simulados-header">
-            <h1>Simulados</h1>
-            <p>Teste seus conhecimentos com simulados personalizados</p>
-          </div>
 
-        {/* Search e Filters */}
-        <div className="simulados-search-section">
-          <div className="simulados-search-wrapper">
-            <span className="simulados-search-icon">🔍</span>
-            <input
-              type="text"
-              className="simulados-search-input"
-              placeholder="Busque pelo simulado que deseja"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
+      <main className="simulados-shell">
+        <section className="simulados-hero">
+          <div>
+            <p className="simulados-kicker">Simulados pré-prontos</p>
+            <h1>Escolha um simulado e comece a praticar</h1>
+            <p className="simulados-description">
+              Encontre atividades organizadas por tema e nível, seguindo o visual leve e limpo do restante da plataforma.
+            </p>
           </div>
+        </section>
 
-          <div className="simulados-filter-buttons">
-            <button
-              className={`simulados-filter-btn ${!filtroNivel ? 'active' : ''}`}
-              onClick={() => setFiltroNivel('')}
-            >
-              Todos
-            </button>
-            <button
-              className={`simulados-filter-btn ${filtroNivel === 'Fácil' ? 'active' : ''}`}
-              onClick={() => setFiltroNivel('Fácil')}
-            >
-              Fácil
-            </button>
-            <button
-              className={`simulados-filter-btn ${filtroNivel === 'Médio' ? 'active' : ''}`}
-              onClick={() => setFiltroNivel('Médio')}
-            >
-              Médio
-            </button>
-            <button
-              className={`simulados-filter-btn ${filtroNivel === 'Difícil' ? 'active' : ''}`}
-              onClick={() => setFiltroNivel('Difícil')}
-            >
-              Difícil
-            </button>
+        <div className="simulados-controls">
+          <section className="simulados-toolbar" aria-label="Busca e filtros de simulados">
+            <div className="simulados-searchbox">
+              <SearchIcon />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Busque pelo simulado que deseja"
+                aria-label="Buscar simulados"
+              />
+              <button
+                type="button"
+                className="simulados-icon-button"
+                aria-label="Abrir filtros"
+                onClick={() => setIsFilterModalOpen(true)}
+              >
+                <FilterIcon />
+              </button>
+              <button
+                type="button"
+                className="simulados-icon-button"
+                aria-label="Limpar filtros"
+                onClick={clearFilters}
+              >
+                <ClearIcon />
+              </button>
+            </div>
+
+            <div className="simulados-level-filters" role="tablist" aria-label="Filtrar por nível">
+              {NIVEL_OPTIONS.map((nivel) => (
+                <button
+                  key={nivel}
+                  type="button"
+                  role="tab"
+                  aria-selected={filtroNivel === nivel}
+                  className={`simulados-level-pill ${filtroNivel === nivel ? 'simulados-level-pill--active' : ''}`}
+                  onClick={() => setFiltroNivel(nivel)}
+                >
+                  {nivel}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="simulados-stats">
+            <article>
+              <span>{totalFiltrados}</span>
+              <p>Simulados visíveis</p>
+            </article>
+            <article>
+              <span>{totalMaterias}</span>
+              <p>Temas diferentes</p>
+            </article>
+            <article>
+              <span>{totalQuestoes}</span>
+              <p>Questões na lista</p>
+            </article>
           </div>
         </div>
 
-        {/* Grid de Simulados */}
-        {simuladosFiltrados.length > 0 ? (
-          <div className="simulados-grid">
-            {simuladosFiltrados.map((simulado) => (
-              <div key={simulado.id} className="simulado-card">
-                <div className="simulado-card-header">
-                  <div className="simulado-card-icon">📄</div>
-                  <div className="simulado-card-nivel" style={{ color: getNivelColor(simulado.nivel) }}>
-                    {simulado.nivel}
+        {isFilterModalOpen ? (
+          <div className="simulados-filter-modal" role="dialog" aria-modal="true" aria-label="Filtros avançados">
+            <button
+              type="button"
+              className="simulados-filter-backdrop"
+              aria-label="Fechar filtros"
+              onClick={() => setIsFilterModalOpen(false)}
+            />
+            <div className="simulados-filter-card">
+              <div className="simulados-filter-header">
+                <h2 className="simulados-filter-title">Filtros</h2>
+                <button
+                  type="button"
+                  className="simulados-filter-close"
+                  aria-label="Fechar filtros"
+                  onClick={() => setIsFilterModalOpen(false)}
+                >
+                  <ClearIcon />
+                </button>
+              </div>
+              <div className="simulados-filter-grid">
+                <div className="simulados-filter-section">
+                  <h3>Categoria</h3>
+                  <div className="simulados-filter-chips">
+                    {NIVEL_OPTIONS.map((nivel) => (
+                      <button
+                        key={nivel}
+                        type="button"
+                        className={`simulados-filter-chip ${filtroNivel === nivel ? 'simulados-filter-chip--active' : ''}`}
+                        onClick={() => setFiltroNivel(nivel)}
+                      >
+                        {nivel}
+                      </button>
+                    ))}
                   </div>
                 </div>
+                <div className="simulados-filter-section">
+                  <h3>Tipo de matéria</h3>
+                  <select
+                    className="simulados-filter-select"
+                    aria-label="Filtrar por matéria"
+                    value={filtroMateria}
+                    onChange={(e) => setFiltroMateria(e.target.value)}
+                  >
+                    {MATERIA_OPTIONS.map((materia) => (
+                      <option key={materia} value={materia}>
+                        {materia}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="simulados-filter-section">
+                  <h3>Quantidade de questões</h3>
+                  <div className="simulados-filter-chips">
+                    {QUESTOES_OPTIONS.map((opcao) => (
+                      <button
+                        key={opcao.value}
+                        type="button"
+                        className={`simulados-filter-chip ${filtroQuestoes === opcao.value ? 'simulados-filter-chip--active' : ''}`}
+                        onClick={() => setFiltroQuestoes(opcao.value)}
+                      >
+                        {opcao.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="simulados-filter-section">
+                  <h3>Tempo de simulado</h3>
+                  <div className="simulados-filter-chips">
+                    {TEMPO_OPTIONS.map((opcao) => (
+                      <button
+                        key={opcao.value}
+                        type="button"
+                        className={`simulados-filter-chip ${filtroTempo === opcao.value ? 'simulados-filter-chip--active' : ''}`}
+                        onClick={() => setFiltroTempo(opcao.value)}
+                      >
+                        {opcao.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="simulados-filter-footer">
+                <button
+                  type="button"
+                  className="simulados-filter-button simulados-filter-button--ghost"
+                  onClick={clearFilters}
+                >
+                  Limpar filtros
+                </button>
+                <button
+                  type="button"
+                  className="simulados-filter-button simulados-filter-button--primary"
+                  onClick={() => setIsFilterModalOpen(false)}
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
-                <h3 className="simulado-card-titulo">{simulado.titulo}</h3>
+        {simuladosFiltrados.length > 0 ? (
+          <section className="simulados-grid" aria-label="Lista de simulados">
+            {simuladosFiltrados.map((simulado, index) => (
+              <article key={simulado.id} className="simulado-card" style={{ animationDelay: `${index * 45}ms` }}>
+                <div className="simulado-card-top">
+                  <div className="simulado-card-book">
+                    <BookIcon />
+                  </div>
+                  <span className={`simulado-card-badge ${getNivelClass(simulado.nivel)}`}>{simulado.nivel}</span>
+                </div>
 
-                <div className="simulado-card-info">
-                  <div className="simulado-card-info-item">
-                    <span className="simulado-card-info-icon">📋</span>
+                <h2>{simulado.titulo}</h2>
+                <p className="simulado-card-text">{simulado.descricao}</p>
+
+                <div className="simulado-card-meta">
+                  <div>
+                    <QuestionIcon />
                     <span>{simulado.questoes} questões</span>
                   </div>
-                  <div className="simulado-card-info-item">
-                    <span className="simulado-card-info-icon">⏱️</span>
+                  <div>
+                    <ClockIcon />
                     <span>{simulado.tempoEstimado} min</span>
                   </div>
-                  <div className="simulado-card-info-item">
-                    <span className="simulado-card-info-icon">📚</span>
+                  <div>
+                    <BookIcon />
                     <span>{simulado.categoria}</span>
                   </div>
                 </div>
 
-                <button
-                  className="simulado-card-button"
-                  onClick={() => handleIniciarSimulado(simulado.id)}
-                  disabled={isLoading}
-                >
+                <button type="button" className="simulado-card-action" onClick={() => handleIniciarSimulado(simulado.id)}>
                   Iniciar Simulado
                 </button>
-              </div>
+              </article>
             ))}
-          </div>
+          </section>
         ) : (
-          <div className="simulados-empty">
-            <div className="simulados-empty-icon">🔍</div>
-            <h3 className="simulados-empty-title">Nenhum simulado encontrado</h3>
-            <p className="simulados-empty-text">
-              Tente ajustar seus filtros de busca ou nível
-            </p>
-          </div>
+          <section className="simulados-empty-state">
+            <div className="simulados-empty-icon">
+              <SearchIcon />
+            </div>
+            <h2>Nenhum simulado encontrado</h2>
+            <p>Experimente limpar a busca ou trocar o nível selecionado.</p>
+          </section>
         )}
-      </div>
-    </main>
-  </div>
-);
+      </main>
+    </div>
+  );
 }

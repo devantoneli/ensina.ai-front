@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --app-background: linear-gradient(180deg, #F6FAFD 0%, #C7E7FF 100%);
   --app-root-font-size: 16px;
 }
 
@@ -25,7 +26,7 @@ html {
 }
 
 body {
-  background: var(--background);
+  background: var(--app-background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

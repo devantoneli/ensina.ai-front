@@ -37,6 +37,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   const quickMenuRef = useRef<HTMLDivElement | null>(null);
 
   const iconButton = 'flex h-[56px] w-[56px] items-center justify-center transition-all duration-200 hover:scale-[1.18] hover:drop-shadow-lg';
+  const sidebarBackground = pathname?.startsWith('/chat') ? 'bg-[#ffd7b1]' : 'bg-transparent';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -167,6 +168,11 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     router.push('/history');
   };
 
+  const handleSimulados = () => {
+    setIsQuickMenuOpen(false);
+    router.push('/simulados');
+  };
+
   const handleChat = () => {
     setIsQuickMenuOpen(false);
     router.push('/chat');
@@ -210,7 +216,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 w-[80px] bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)]">
+    <aside className={`fixed inset-y-0 left-0 z-30 w-[80px] ${sidebarBackground}`}>
       <div className="relative flex h-full flex-col items-center py-[24px]">
         <button type="button" className={iconButton} aria-label="Voltar" onClick={handleBack}>
           <Image src="/assets/chat/Group%2021.png" alt="Voltar" width={52} height={52} />
@@ -284,7 +290,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
           <div className="mt-[12px] space-y-[8px]">
             <button
               type="button"
-              onClick={() => setIsQuickMenuOpen(false)}
+              onClick={handleSimulados}
               className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
             >
               Simulados

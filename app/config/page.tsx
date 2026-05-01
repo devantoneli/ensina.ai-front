@@ -399,6 +399,7 @@ export default function ConfigPage() {
     { id: 'privacy', label: 'Privacidade (LGPD)', icon: <PrivacyIcon /> },
     { id: 'about', label: 'Sobre', icon: <AboutIcon /> },
   ];
+  const visibleMenuItems = menuItems.filter((item) => item.id !== 'privacy');
 
   return (
     <div className="config-page">
@@ -414,7 +415,7 @@ export default function ConfigPage() {
 
         <div className="config-container">
           <aside className="config-sidebar">
-            {menuItems.map((item) => (
+            {visibleMenuItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
