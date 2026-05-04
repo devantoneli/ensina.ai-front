@@ -1,0 +1,311 @@
+.desempenho-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f6fafd 0%, #c7e7ff 100%);
+  display: flex;
+}
+
+.desempenho-main {
+  flex: 1;
+  margin-left: 80px;
+  display: flex;
+  flex-direction: column;
+  padding: 32px clamp(20px, 3vw, 40px);
+  gap: 24px;
+}
+
+/* ── Header ── */
+.desempenho-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.desempenho-back-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f97316;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+
+.desempenho-back-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.45);
+}
+
+.desempenho-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #2f79cb;
+  margin: 0;
+}
+
+/* ── Subtitle card ── */
+.desempenho-subtitle-card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px 24px;
+  color: #64748b;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgba(34, 67, 111, 0.07);
+}
+
+/* ── Stats grid ── */
+.desempenho-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .desempenho-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.desempenho-stat-card {
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: white;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.desempenho-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+}
+
+.desempenho-stat-card--blue   { background: linear-gradient(135deg, #3D8ADE, #79B3E0); }
+.desempenho-stat-card--orange { background: #E67E5D; }
+.desempenho-stat-card--teal   { background: linear-gradient(135deg, #3D8ADE, #79B3E0); }
+.desempenho-stat-card--blue2  { background: linear-gradient(135deg, #3D8ADE, #79B3E0); }
+
+.desempenho-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.3rem;
+}
+
+.desempenho-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  margin: 0 0 4px;
+}
+
+.desempenho-stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1;
+}
+
+/* ── Bottom grid ── */
+.desempenho-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 800px) {
+  .desempenho-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.desempenho-card {
+  background: white;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 4px 16px rgba(34, 67, 111, 0.08);
+}
+
+.desempenho-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin: 0 0 20px;
+}
+
+/* ── Bar chart ── */
+.desempenho-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.desempenho-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.desempenho-bar-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.desempenho-bar-track {
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
+
+.desempenho-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desempenho-bar-fill--correct { background: #4791df; }
+.desempenho-bar-fill--wrong   { background: #fca5a5; }
+
+.desempenho-bar-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.desempenho-bar-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.desempenho-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.desempenho-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+/* ── Recomendações ── */
+.desempenho-recs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.desempenho-rec-card {
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.desempenho-rec-card--red    { background: #fff1f0; }
+.desempenho-rec-card--yellow { background: #fffbeb; }
+.desempenho-rec-card--green  { background: #f0fdf4; }
+
+.desempenho-rec-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.desempenho-rec-icon--red    { background: #fee2e2; }
+.desempenho-rec-icon--yellow { background: #fef3c7; }
+.desempenho-rec-icon--green  { background: #dcfce7; }
+
+.desempenho-rec-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0 0 3px;
+}
+
+.desempenho-rec-title--red    { color: #dc2626; }
+.desempenho-rec-title--yellow { color: #d97706; }
+.desempenho-rec-title--green  { color: #16a34a; }
+
+.desempenho-rec-text {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ── Pie chart (CSS) ── */
+.desempenho-pie-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.desempenho-pie {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.desempenho-pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.desempenho-pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.desempenho-pie-legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Loading / empty ── */
+.desempenho-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}

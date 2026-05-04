@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { authService } from '@/services/authService';
+import { useProgress } from '@/hooks/useProgress';
 import './history.css';
 
 type HistoryItem = {
@@ -92,6 +93,13 @@ export default function HistoryPage() {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
+  // ── Dados reais de progresso ──────────────
+  const { dashboard, isLoading: isLoadingProgress } = useProgress();
+
+  const accuracyPct = dashboard?.accuracy?.accuracy_pct ?? null;
+  const totalMessages = dashboard?.study_time?.total_messages ?? null;
+  const weakTopics = dashboard?.weak_topics ?? [];
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.replace('/login');
@@ -170,6 +178,7 @@ export default function HistoryPage() {
 
         <section className="history-content">
           <div className="history-summary-grid">
+            {/* Última conversa — já funcionava */}
             <article className="history-summary-card">
               <p className="history-summary-label">Última conversa</p>
               <p className="history-summary-value">
@@ -180,19 +189,65 @@ export default function HistoryPage() {
               </p>
             </article>
 
-            <article className="history-summary-card history-summary-card--placeholder">
-              <p className="history-summary-label">Último simulado</p>
-              <p className="history-summary-value">Sem simulados disponíveis</p>
-              <p className="history-summary-meta">Faça um simulado para ele aparecer aqui.</p>
+            {/* Mensagens trocadas — proxy de tempo estudado */}
+            <article className="history-summary-card">
+              <p className="history-summary-label">Mensagens estudadas</p>
+              <p className="history-summary-value">
+                {isLoadingProgress
+                  ? 'Carregando...'
+                  : totalMessages !== null
+                  ? `${totalMessages} mensagens`
+                  : 'Sem dados ainda'}
+              </p>
+              <p className="history-summary-meta">
+                {totalMessages
+                  ? 'Total de interações no chat'
+                  : 'Converse com a IA para acumular progresso.'}
+              </p>
             </article>
 
-            <article className="history-summary-card history-summary-card--placeholder">
+            {/* Desempenho — agora com dados reais */}
+            <article className="history-summary-card">
               <p className="history-summary-label">Desempenho</p>
-              <p className="history-summary-value">--%</p>
-              <p className="history-summary-meta">Seu desempenho aparecerá após concluir atividades.</p>
+              <p className="history-summary-value">
+                {isLoadingProgress
+                  ? 'Carregando...'
+                  : accuracyPct !== null
+                  ? `${accuracyPct}%`
+                  : '--%'}
+              </p>
+              <p className="history-summary-meta">
+                {accuracyPct !== null
+                  ? 'Taxa de acerto nas questões respondidas'
+                  : 'Seu desempenho aparecerá após responder questões.'}
+              </p>
             </article>
           </div>
 
+          {/* Pontos fracos — só aparece se houver dados */}
+          {weakTopics.length > 0 && (
+            <section className="history-list-card">
+              <div className="history-list-header">
+                <h2>Pontos a melhorar</h2>
+                <span>{weakTopics.length} tópicos</span>
+              </div>
+              <div className="history-list">
+                {weakTopics.map((topic) => (
+                  <article key={topic.topic} className="history-item">
+                    <div>
+                      <p className="history-item-title">{topic.topic}</p>
+                      <p className="history-item-subtitle">
+                        {topic.correct} acertos de {topic.total} questões — {topic.accuracy_pct}%
+                      </p>
+                    </div>
+                    <span className="history-item-arrow" style={{ color: '#e57373' }}>!</span>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Conversas recentes */}
           <section className="history-list-card">
             <div className="history-list-header">
               <h2>Conversas recentes</h2>
