@@ -630,27 +630,27 @@ function ChatContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#E1F0FC_-14.48%,#79B3E0_109.23%)]">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)]">
       <ChatSidebar onNewChat={handleNewChat} />
 
       <main className="ml-[80px] min-h-screen">
         <div className="flex min-h-screen">
           <aside className="sticky top-0 h-screen w-[320px] shrink-0 overflow-y-auto bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)] px-6 py-6">
-            <p className="text-[15px] font-medium text-[#263244]">Resultados do chat</p>
+            <p className="text-[var(--app-root-font-size)] font-medium text-[#263244]">Resultados do chat</p>
 
             <section className="mt-5">
-              <h2 className="text-[22px] font-semibold text-[#1f2937]">Conteudos</h2>
+              <h2 className="text-[calc(var(--app-root-font-size)*1.375)] font-semibold text-[#1f2937]">Conteudos</h2>
 
               <div className="mt-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_22px_rgba(34,67,111,0.12)]">
                 <div className="flex items-start gap-3">
                   <span className="mt-1 h-3 w-3 rounded-full bg-[#2f90e5]" />
                   <div>
-                    <p className="text-[13px] font-semibold text-[#1f2937]">{activeDiscipline}</p>
-                    <p className="text-[11px] text-[#6b7b8f]">{contentSubtitle}</p>
+                    <p className="text-[calc(var(--app-root-font-size)*0.8125)] font-semibold text-[#1f2937]">{activeDiscipline}</p>
+                    <p className="text-[calc(var(--app-root-font-size)*0.6875)] text-[#6b7b8f]">{contentSubtitle}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 min-h-[108px] rounded-[22px] bg-[#7341b0] px-4 py-4 text-white shadow-[0_12px_22px_rgba(93,54,150,0.24)]">
+                <div className="mt-4 min-h-[108px] rounded-[22px] bg-[linear-gradient(135deg,#4A8FD9_0%,#2F90E5_100%)] px-4 py-4 text-white shadow-[0_12px_22px_rgba(47,144,229,0.28)]">
                   <div className="flex items-center justify-between">
                     <button
                       type="button"
@@ -675,20 +675,20 @@ function ChatContent() {
                     {Array.from({ length: dotCount }).map((_, index) => (
                       <span
                         key={`dot-${index}`}
-                        className={`h-2.5 w-2.5 rounded-full ${index === contentIndex ? 'bg-[#ef7c4d]' : 'bg-[#f2e5f8]'}`}
+                        className={`h-2.5 w-2.5 rounded-full ${index === contentIndex ? 'bg-[#dff0ff]' : 'bg-[#9fc8ef]'}`}
                       />
                     ))}
                   </div>
                 </div>
               </div>
 
-              <h3 className="mt-8 text-[22px] font-semibold text-[#1f2937]">Conversas anteriores</h3>
+              <h3 className="mt-8 text-[calc(var(--app-root-font-size)*1.375)] font-semibold text-[#1f2937]">Conversas anteriores</h3>
 
               <div className="mt-4 space-y-3 pb-6">
                 {sortedSessions.length === 0 ? (
                   <div className="rounded-[22px] bg-white px-4 py-4 shadow-[0_8px_18px_rgba(34,67,111,0.1)]">
-                    <p className="text-[13px] font-semibold text-[#334155]">Nenhuma conversa ainda</p>
-                    <p className="mt-1 text-[11px] text-[#64748b]">Comece com sua primeira pergunta para salvar o historico.</p>
+                    <p className="text-[calc(var(--app-root-font-size)*0.8125)] font-semibold text-[#334155]">Nenhuma conversa ainda</p>
+                    <p className="mt-1 text-[calc(var(--app-root-font-size)*0.6875)] text-[#64748b]">Comece com sua primeira pergunta para salvar o historico.</p>
                   </div>
                 ) : (
                   sortedSessions.map((session, index) => {
@@ -730,16 +730,16 @@ function ChatContent() {
                         </button>
 
                         <div className="flex items-center gap-2 pr-8">
-                          <span className={`h-2.5 w-2.5 rounded-full ${index % 2 === 0 ? 'bg-[#7fe28b]' : 'bg-[#8ec4ff]'}`} />
+                          <span className={`h-2.5 w-2.5 rounded-full ${index % 2 === 0 ? 'bg-[#2f90e5]' : 'bg-[#8ec4ff]'}`} />
                           <div>
-                            <p className="text-[13px] font-semibold text-[#1f2937]">{session.title}</p>
-                            <p className="text-[11px] text-[#8a9bb2]">{formatPtDate(session.updatedAt)}</p>
+                            <p className="text-[calc(var(--app-root-font-size)*0.8125)] font-semibold text-[#1f2937]">{session.title}</p>
+                            <p className="text-[calc(var(--app-root-font-size)*0.6875)] text-[#8a9bb2]">{formatPtDate(session.updatedAt)}</p>
                           </div>
                         </div>
 
                         <div className="mt-3 space-y-2">
                           {preview.map((topic) => (
-                            <div key={topic} className="rounded-full bg-[#ededed] px-3 py-1.5 text-[11px] text-[#4b5563]">
+                            <div key={topic} className="rounded-full bg-[rgba(71,145,223,0.12)] px-3 py-1.5 text-[calc(var(--app-root-font-size)*0.6875)] text-[#2f79cb]">
                               {topic}
                             </div>
                           ))}
@@ -752,9 +752,9 @@ function ChatContent() {
             </section>
           </aside>
 
-          <section className="relative flex min-h-screen min-w-0 flex-1 flex-col rounded-[69px] bg-[linear-gradient(180deg,#E1F0FC_-14.48%,#79B3E0_109.23%)] px-6 shadow-[inset_1px_0_0_rgba(255,255,255,0.65)]">
+          <section className="relative flex min-h-screen min-w-0 flex-1 flex-col rounded-[69px] bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)] px-6">
             <header className="relative flex items-center justify-center py-6">
-              <h1 className="text-center text-[28px] font-medium text-[#1f2937]">{headerTitle}</h1>
+              <h1 className="text-center text-[calc(var(--app-root-font-size)*1.75)] font-medium text-[#1f2937]">{headerTitle}</h1>
               <button
                 type="button"
                 onClick={handleNewChat}
@@ -770,9 +770,9 @@ function ChatContent() {
               {!hasMessages ? (
                 <div className="flex w-full flex-col items-center gap-7 px-6 text-center">
                   {greetingLine ? (
-                    <p className="text-[12px] text-[#6b7b8f]">{greetingLine}</p>
+                    <p className="text-[calc(var(--app-root-font-size)*0.75)] text-[#6b7b8f]">{greetingLine}</p>
                   ) : null}
-                  <p className="text-[28px] font-semibold text-[#1f2937]">O que vamos estudar hoje?</p>
+                  <p className="text-[calc(var(--app-root-font-size)*1.75)] font-semibold text-[#1f2937]">O que vamos estudar hoje?</p>
                   <form
                     onSubmit={handleSend}
                     className="w-full max-w-[640px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
@@ -782,13 +782,13 @@ function ChatContent() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Por onde começamos?"
-                        className="flex-1 bg-transparent text-[15px] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
+                        className="flex-1 bg-transparent text-[var(--app-root-font-size)] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
                         disabled={isSending}
                       />
                       <button
                         type="submit"
                         disabled={isSending || !input.trim()}
-                        className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[15px] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
+                        className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[var(--app-root-font-size)] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
                       >
                         {isSending ? '...' : '➤'}
                       </button>
@@ -811,11 +811,11 @@ function ChatContent() {
                         }`}
                       >
                         {message.role === 'assistant' && index === 0 && assistantMetaTitle ? (
-                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7b8da1]">
+                          <p className="mb-2 text-[calc(var(--app-root-font-size)*0.6875)] font-semibold uppercase tracking-[0.08em] text-[#7b8da1]">
                             {assistantMetaSubtitle ? `${assistantMetaTitle} - ${assistantMetaSubtitle}` : assistantMetaTitle}
                           </p>
                         ) : null}
-                        <p className="whitespace-pre-line text-[15px] leading-6">{message.content}</p>
+                        <p className="whitespace-pre-line text-[var(--app-root-font-size)] leading-6">{message.content}</p>
                       </div>
                     </div>
                   ))}
@@ -834,13 +834,13 @@ function ChatContent() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Por onde começamos?"
-                    className="flex-1 bg-transparent text-[15px] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
+                    className="flex-1 bg-transparent text-[var(--app-root-font-size)] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
                     disabled={isSending}
                   />
                   <button
                     type="submit"
                     disabled={isSending || !input.trim()}
-                    className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[15px] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
+                    className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[var(--app-root-font-size)] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
                   >
                     {isSending ? '...' : '➤'}
                   </button>

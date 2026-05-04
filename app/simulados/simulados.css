@@ -1,7 +1,10 @@
 .simulados-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #F6FAFD 0%, #C7E7FF 100%) !important;
-  background-color: #F6FAFD !important;
+  background: linear-gradient(180deg, #f6fafd 0%, #c7e7ff 100%);
+}
+
+.simulados-page > aside {
+  background: transparent !important;
 }
 
 .simulados-shell {

@@ -264,7 +264,7 @@ export default function HistoryPage() {
                 {historyItems.map((item) => (
                   <article
                     key={item.id}
-                    className="history-item cursor-pointer hover:bg-black/5 transition-colors"
+                    className="history-item cursor-pointer"
                     onClick={() => router.push(`/chat?session_id=${item.id}`)}
                     role="button"
                     tabIndex={0}
