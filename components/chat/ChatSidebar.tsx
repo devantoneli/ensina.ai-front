@@ -37,7 +37,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   const quickMenuRef = useRef<HTMLDivElement | null>(null);
 
   const iconButton = 'flex h-[56px] w-[56px] items-center justify-center transition-all duration-200 hover:scale-[1.18] hover:drop-shadow-lg';
-  const sidebarBackground = pathname?.startsWith('/chat') ? 'bg-[#ffd7b1]' : 'bg-transparent';
+  const sidebarBackground = 'bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)]';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

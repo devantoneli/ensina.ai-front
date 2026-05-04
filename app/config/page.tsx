@@ -16,9 +16,13 @@ const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const APP_ANIMATIONS_ATTRIBUTE = 'data-animations';
 
 const FONT_SIZE_MAP: Record<FontSizeOption, string> = {
-  small: '15px',
-  normal: '16px',
-  large: '18px',
+  // remap sizes per user's request:
+  // new small = previous normal (16px)
+  // new normal = previous large (18px)
+  // new large = larger than previous large (20px)
+  small: '16px',
+  normal: '18px',
+  large: '20px',
 };
 
 function isFontSizeOption(value: string): value is FontSizeOption {
