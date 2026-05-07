@@ -37,7 +37,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
   const quickMenuRef = useRef<HTMLDivElement | null>(null);
 
   const iconButton = 'flex h-[56px] w-[56px] items-center justify-center transition-all duration-200 hover:scale-[1.18] hover:drop-shadow-lg';
-  const sidebarBackground = pathname?.startsWith('/chat') ? 'bg-[#ffd7b1]' : 'bg-transparent';
+  const sidebarBackground = 'bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)]';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -178,6 +178,11 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     router.push('/chat');
   };
 
+  const handleDesempenho = () => {
+    setIsQuickMenuOpen(false);
+    router.push('/desempenho');
+  };
+
   const handleBack = () => {
     if (typeof window !== 'undefined') {
       const previousRoute = window.sessionStorage.getItem('ensina_ai_previous_route');
@@ -304,7 +309,7 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
             </button>
             <button
               type="button"
-              onClick={handleChat}
+              onClick={handleDesempenho}
               className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
             >
               Desempenho

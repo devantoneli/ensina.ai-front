@@ -4,7 +4,7 @@
   --background: #ffffff;
   --foreground: #171717;
   --app-background: linear-gradient(180deg, #F6FAFD 0%, #C7E7FF 100%);
-  --app-root-font-size: 16px;
+  --app-root-font-size: 18px;
 }
 
 @theme inline {
