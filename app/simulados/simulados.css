@@ -1132,3 +1132,240 @@ select {
     align-self: flex-end;
   }
 }
+
+/* Result Page Styles */
+.simulado-result-card {
+  max-width: 980px;
+  margin: 0 auto;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 40px rgba(71, 145, 223, 0.16);
+  backdrop-filter: blur(8px);
+  padding: 28px;
+}
+
+.simulado-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.simulado-result-header h1 {
+  margin: 6px 0 4px;
+  font-size: 30px;
+  line-height: 1.2;
+  color: #2f79cb;
+}
+
+.simulado-result-header p {
+  margin: 0;
+  color: #5d7fa6;
+  font-size: 14px;
+}
+
+.simulado-result-score {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.simulado-score-display {
+  padding: 24px;
+  border-radius: 18px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 2px solid #10b981;
+}
+
+.simulado-score-display h2 {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 700;
+  color: #10b981;
+  line-height: 1;
+}
+
+.simulado-score-display p {
+  margin: 8px 0 0;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.simulado-score-percentage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 18px;
+  background: rgba(71, 145, 223, 0.1);
+  border: 2px solid #2f79cb;
+}
+
+.simulado-percentage-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2f79cb 0%, #4791df 100%);
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.simulado-score-percentage p {
+  margin: 0;
+  color: #2f79cb;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.simulado-result-info {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.simulado-result-info article {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(71, 145, 223, 0.22);
+}
+
+.simulado-result-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #7f98b6;
+}
+
+.simulado-result-info strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 15px;
+  color: #2f79cb;
+}
+
+.simulado-info-correct {
+  color: #10b981 !important;
+}
+
+.simulado-info-wrong {
+  color: #ef4444 !important;
+}
+
+.simulado-result-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.simulado-result-footer > p {
+  margin: 0;
+  color: #5d7fa6;
+  font-size: 14px;
+}
+
+.simulado-result-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Review Page Styles */
+.simulado-option--review {
+  pointer-events: none;
+  cursor: default;
+  background: #f3f4f6;
+  border: 1px solid rgba(71, 145, 223, 0.15);
+}
+
+.simulado-option--review span {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.simulado-option--correct {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1.5px solid #10b981;
+}
+
+.simulado-option--correct span {
+  color: #10b981;
+}
+
+.simulado-option--wrong {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1.5px solid #ef4444;
+}
+
+.simulado-option--wrong span {
+  color: #ef4444;
+}
+
+.simulado-option-label {
+  display: inline-block;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.simulado-option--correct .simulado-option-label {
+  color: #10b981;
+}
+
+.simulado-option--wrong .simulado-option-label {
+  color: #ef4444;
+}
+
+.simulado-question-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #2f79cb;
+  gap: 6px;
+}
+
+.simulado-question-status--correct {
+  background: #10b981;
+}
+
+.simulado-question-status--wrong {
+  background: #ef4444;
+}
+
+@media (max-width: 768px) {
+  .simulado-result-score {
+    grid-template-columns: 1fr;
+  }
+
+  .simulado-result-info {
+    grid-template-columns: 1fr;
+  }
+
+  .simulado-result-actions {
+    justify-content: stretch;
+  }
+
+  .simulado-result-actions > button {
+    flex: 1;
+  }
+}

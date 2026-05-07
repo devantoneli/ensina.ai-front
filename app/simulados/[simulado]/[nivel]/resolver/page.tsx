@@ -95,6 +95,23 @@ function createPlaceholderQuestions(title: string, level: string): SimuladoQuest
   });
 }
 
+function generateCorrectAnswers(questions: SimuladoQuestion[]): Record<string, OptionLabel> {
+  const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
+  const result: Record<string, OptionLabel> = {};
+
+  questions.forEach((question) => {
+    // Generate a deterministic answer based on question ID
+    const hash = Array.from(question.id).reduce((acc, char) => {
+      return ((acc << 5) - acc) + char.charCodeAt(0);
+    }, 0);
+    
+    const index = Math.abs(hash) % labels.length;
+    result[question.id] = labels[index];
+  });
+
+  return result;
+}
+
 export default function SimuladoResolverPage() {
   const router = useRouter();
   const params = useParams<{ simulado: string; nivel: string }>();
@@ -105,7 +122,6 @@ export default function SimuladoResolverPage() {
   const nivelExibido = nivel ? levelLabel(safeDecode(nivel)) : 'Nível';
   const questions = useMemo(() => createPlaceholderQuestions(titulo, nivelExibido), [titulo, nivelExibido]);
   const [answers, setAnswers] = useState<Record<string, OptionLabel>>({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
   const simuladoCompletionKey = useMemo(() => normalizeCompletionKey(titulo, nivelExibido), [titulo, nivelExibido]);
@@ -118,28 +134,47 @@ export default function SimuladoResolverPage() {
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
 
   const handleSelectOption = (questionId: string, option: OptionLabel) => {
-    if (isSubmitted) return;
     setAnswers((current) => ({ ...current, [questionId]: option }));
   };
 
   const handleFinalize = () => {
     if (!allAnswered) return;
+    
     try {
       if (typeof window !== 'undefined') {
+        // Save completion key
         const raw = window.localStorage.getItem('completed_simulado_keys');
         const keys = raw ? (JSON.parse(raw) as string[]) : [];
         const unique = Array.isArray(keys) ? Array.from(new Set([...keys, simuladoCompletionKey])) : [simuladoCompletionKey];
         window.localStorage.setItem('completed_simulado_keys', JSON.stringify(unique));
+
+        // Generate correct answers
+        const correctAnswers = generateCorrectAnswers(questions);
+        
+        // Calculate score
+        const correct = questions.filter((q) => answers[q.id] === correctAnswers[q.id]).length;
+        const total = questions.length;
+        const percentage = Math.round((correct / total) * 100);
+
+        // Save answers and correct answers
+        window.localStorage.setItem(`simulado_answers_${simuladoCompletionKey}`, JSON.stringify(answers));
+        window.localStorage.setItem(`simulado_correct_answers_${simuladoCompletionKey}`, JSON.stringify(correctAnswers));
+        window.localStorage.setItem(
+          `simulado_result_${simuladoCompletionKey}`,
+          JSON.stringify({ correct, total, percentage })
+        );
       }
-    } catch {
-      // ignore local persistence errors
+    } catch (error) {
+      console.error('Error saving result:', error);
     }
-    setIsSubmitted(true);
+
+    // Redirect to results page
+    const nivelEncoded = encodeURIComponent(nivel ?? 'medio');
+    router.push(`/simulados/${encodeURIComponent(titulo)}/${nivelEncoded}/resultado`);
   };
 
   const handleConfirmExit = () => {
     setAnswers({});
-    setIsSubmitted(false);
     setIsExitModalOpen(false);
     router.push('/simulados');
   };
@@ -176,7 +211,7 @@ export default function SimuladoResolverPage() {
             </article>
             <article>
               <p>Status</p>
-              <strong>{isSubmitted ? 'Finalizado' : 'Em andamento'}</strong>
+              <strong>Em andamento</strong>
             </article>
           </div>
 
@@ -198,7 +233,6 @@ export default function SimuladoResolverPage() {
                         type="button"
                         className={`simulado-option ${checked ? 'simulado-option--selected' : ''}`}
                         onClick={() => handleSelectOption(question.id, option.label)}
-                        disabled={isSubmitted}
                         aria-pressed={checked}
                       >
                         <span>{option.label}</span>
@@ -212,7 +246,7 @@ export default function SimuladoResolverPage() {
           </section>
 
           <footer className="simulado-runner-footer">
-            <p>{isSubmitted ? '' : 'Você só pode finalizar quando todas as questões estiverem respondidas.'}</p>
+            <p>Você só pode finalizar quando todas as questões estiverem respondidas.</p>
 
             <div className="simulado-runner-actions">
               <div className="simulado-runner-actions-left">
@@ -228,7 +262,7 @@ export default function SimuladoResolverPage() {
                 type="button"
                 className="simulado-runner-button simulado-runner-button--primary"
                 onClick={handleFinalize}
-                disabled={!allAnswered || isSubmitted}
+                disabled={!allAnswered}
                 title={!allAnswered ? 'Responda todas as questões para finalizar' : undefined}
               >
                 Finalizar simulado
