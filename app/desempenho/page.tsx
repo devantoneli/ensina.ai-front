@@ -174,9 +174,9 @@ export default function DesempenhoPage() {
               <div className="desempenho-stat-card desempenho-stat-card--teal">
                 <div className="desempenho-stat-icon"><IconClock /></div>
                 <div>
-                  <p className="desempenho-stat-label">Tempo de Estudo</p>
+                  <p className="desempenho-stat-label">Mensagens Trocadas</p>
                   <p className="desempenho-stat-value">
-                    {studyTime?.total_messages != null ? `${studyTime.total_messages} msg` : '--'}
+                    {studyTime?.total_messages != null ? studyTime.total_messages : '--'}
                   </p>
                 </div>
               </div>
@@ -196,7 +196,7 @@ export default function DesempenhoPage() {
             <div className="desempenho-bottom-grid">
               {/* Gráfico de barras por tópico */}
               <div className="desempenho-card">
-                <h2 className="desempenho-card-title">Desempenho por Tópico de Português</h2>
+                <h2 className="desempenho-card-title">Desempenho por Tópico</h2>
 
                 {byTopic.length === 0 ? (
                   <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
@@ -267,7 +267,7 @@ export default function DesempenhoPage() {
 
               {/* Gráfico de pizza — distribuição de tópicos */}
               <div className="desempenho-card">
-                <h2 className="desempenho-card-title">Distribuição de Tempo de Estudo</h2>
+                <h2 className="desempenho-card-title">Distribuição de Questões por Tópico</h2>
 
                 {pieSlices.length === 0 ? (
                   <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
@@ -291,7 +291,35 @@ export default function DesempenhoPage() {
                 )}
               </div>
 
-
+              {/* Resumo de sessões */}
+              <div className="desempenho-card">
+                <h2 className="desempenho-card-title">Resumo de Estudo</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    { label: 'Total de sessões',    value: studyTime?.total_sessions ?? '--' },
+                    { label: 'Total de mensagens',  value: studyTime?.total_messages ?? '--' },
+                    { label: 'Questões respondidas', value: accuracy?.total ?? '--' },
+                    { label: 'Respostas corretas',  value: accuracy?.correct ?? '--' },
+                    { label: 'Respostas erradas',   value: accuracy?.wrong ?? '--' },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 0',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.88rem', color: '#64748b' }}>{item.label}</span>
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: '#2f79cb' }}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </>
         )}
