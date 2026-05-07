@@ -31,50 +31,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Email e senha são obrigatórios.' }, { status: 400 });
   }
 
-  const attempts: Array<{ headers: HeadersInit; body: BodyInit }> = [
-    {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    },
-    {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password }),
-    },
-    {
+  try {
+    const backendResponse = await fetch(`${backendBaseUrl}/auth/login`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ username: email, password }),
-    },
-  ];
+      cache: 'no-store',
+    });
 
-  let lastStatus = 502;
-  let lastData: unknown = { message: 'Falha ao autenticar.' };
-
-  for (const attempt of attempts) {
-    try {
-      const backendResponse = await fetch(`${backendBaseUrl}/auth/login`, {
-        method: 'POST',
-        headers: attempt.headers,
-        body: attempt.body,
-        cache: 'no-store',
-      });
-
-      const data = await parseResponse(backendResponse);
-
-      if (backendResponse.ok) {
-        return NextResponse.json(data, { status: backendResponse.status });
-      }
-
-      lastStatus = backendResponse.status;
-      lastData = data;
-
-      if (backendResponse.status !== 422) {
-        return NextResponse.json(data, { status: backendResponse.status });
-      }
-    } catch {
-      lastStatus = 502;
-      lastData = { message: `Não foi possível conectar ao backend em ${backendBaseUrl}.` };
-    }
+    const data = await parseResponse(backendResponse);
+    return NextResponse.json(data, { status: backendResponse.status });
+  } catch {
+    return NextResponse.json({ message: `Não foi possível conectar ao backend em ${backendBaseUrl}.` }, { status: 502 });
   }
-
-  return NextResponse.json(lastData, { status: lastStatus });
 }

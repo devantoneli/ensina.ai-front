@@ -1,7 +1,7 @@
 import api from './api';
 
 export interface Discipline {
-  id: int;
+  id: number;
   name: string;
   description?: string;
 }

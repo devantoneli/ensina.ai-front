@@ -7,6 +7,7 @@ export interface Simulado {
   tempoEstimado: number; // em minutos
   categoria: string;
   imagem?: string;
+  feito?: boolean;
 }
 
 export interface SimuladoResponse {

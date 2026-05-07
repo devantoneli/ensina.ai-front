@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 type ChatRequestBody = {
-  message?: string;
-  question?: string;
+  messages?: Array<{ role: 'user' | 'system' | 'assistant'; content: string }>;
+  mode?: string;
 };
 
 async function parseBackendResponse(response: Response) {
@@ -36,13 +36,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const question = (req.nextUrl.searchParams.get('question') ?? body.message ?? body.question ?? '').trim();
-
-  if (!question) {
-    return NextResponse.json({ message: 'Pergunta é obrigatória.' }, { status: 400 });
+  if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
+    return NextResponse.json({ message: 'messages é obrigatório.' }, { status: 400 });
   }
 
-  const endpoint = `${backendBaseUrl}/free-mode/?question=${encodeURIComponent(question)}`;
+  const endpoint = `${backendBaseUrl}/free-mode`;
 
   try {
     const backendResponse = await fetch(endpoint, {
@@ -51,6 +49,7 @@ export async function POST(req: NextRequest) {
         Authorization: authorization,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ messages: body.messages, mode: body.mode }),
       cache: 'no-store',
     });
 

@@ -302,8 +302,10 @@ function formatAssistantReply(question: string, data: any, ok: boolean): string 
   }
 
   const discipline = data.classification?.discipline;
-  const contents = data.classification?.contents ?? [];
-  const modules = data.trail?.trail ?? [];
+  const contents: string[] = data.classification?.contents ?? [];
+  const modules: Array<{ title?: string; activities?: string[] }> = Array.isArray(data.trail?.trail)
+    ? data.trail.trail
+    : [];
 
   if (!discipline && contents.length === 0 && modules.length === 0) {
     return data.message ?? data.detail ?? `Entendi sua pergunta sobre "${question}". Vamos trabalhar nisso em partes.`;

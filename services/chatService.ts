@@ -4,7 +4,7 @@ import type { ChatMessageRequest, ChatResponse } from '@/types/chat';
 export const chatService = {
   async sendMessage(messages: ChatMessageRequest[], mode: string): Promise<ChatResponse> {
     try {
-      const response = await api.post<ChatResponse>('/free-mode/', {
+      const response = await api.post<ChatResponse>('/free-mode', {
         messages,
         mode,
       });

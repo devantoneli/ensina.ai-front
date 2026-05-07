@@ -1,14 +1,16 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { Simulado } from '@/types/simulados';
+import { simuladoService } from '@/services/simuladoService';
 import './simulados.css';
 
 type NivelFiltro = 'Todos' | 'Fácil' | 'Médio' | 'Difícil';
 type TempoFiltro = 'Todos' | 'Ate20' | '21-35' | '36+';
 type QuestoesFiltro = 'Todas' | 'Ate10' | '11-15' | '16+';
+type FeitosFiltro = 'Todos' | 'Feitos' | 'NaoFeitos';
 
 const SIMULADOS_EXEMPLO: Simulado[] = [
   {
@@ -19,6 +21,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 10,
     tempoEstimado: 30,
     categoria: 'Gramática',
+    feito: false,
   },
   {
     id: '2',
@@ -28,6 +31,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 8,
     tempoEstimado: 20,
     categoria: 'Pontuação',
+    feito: false,
   },
   {
     id: '3',
@@ -37,6 +41,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 15,
     tempoEstimado: 45,
     categoria: 'Ortografia',
+    feito: false,
   },
   {
     id: '4',
@@ -46,6 +51,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 12,
     tempoEstimado: 35,
     categoria: 'Acentuação',
+    feito: false,
   },
   {
     id: '5',
@@ -55,6 +61,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 14,
     tempoEstimado: 40,
     categoria: 'Gramática',
+    feito: false,
   },
   {
     id: '6',
@@ -64,6 +71,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 10,
     tempoEstimado: 30,
     categoria: 'Interpretação',
+    feito: false,
   },
   {
     id: '7',
@@ -73,6 +81,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 16,
     tempoEstimado: 45,
     categoria: 'Gramática',
+    feito: false,
   },
   {
     id: '8',
@@ -82,6 +91,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 10,
     tempoEstimado: 25,
     categoria: 'Gramática',
+    feito: false,
   },
   {
     id: '9',
@@ -91,6 +101,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 12,
     tempoEstimado: 40,
     categoria: 'Literatura',
+    feito: false,
   },
   {
     id: '10',
@@ -100,14 +111,11 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     questoes: 10,
     tempoEstimado: 20,
     categoria: 'Semântica',
+    feito: false,
   },
 ];
 
 const NIVEL_OPTIONS: NivelFiltro[] = ['Todos', 'Fácil', 'Médio', 'Difícil'];
-const MATERIA_OPTIONS = [
-  'Todas',
-  ...Array.from(new Set(SIMULADOS_EXEMPLO.map((simulado) => simulado.categoria))).sort(),
-];
 const TEMPO_OPTIONS: Array<{ value: TempoFiltro; label: string }> = [
   { value: 'Todos', label: 'Todos' },
   { value: 'Ate20', label: 'Até 20 min' },
@@ -119,6 +127,11 @@ const QUESTOES_OPTIONS: Array<{ value: QuestoesFiltro; label: string }> = [
   { value: 'Ate10', label: 'Até 10' },
   { value: '11-15', label: '11-15' },
   { value: '16+', label: '16+' },
+];
+const FEITOS_OPTIONS: Array<{ value: FeitosFiltro; label: string }> = [
+  { value: 'Todos', label: 'Todos' },
+  { value: 'Feitos', label: 'Feitos' },
+  { value: 'NaoFeitos', label: 'Não Feitos' },
 ];
 
 function levelToPathSegment(level: string): string {
@@ -185,10 +198,18 @@ function QuestionIcon() {
 export default function SimuladosPage() {
   const router = useRouter();
   const [busca, setBusca] = useState('');
+  const [completedSimulados, setCompletedSimulados] = useState<string[]>([]);
+  const [simulados, setSimulados] = useState<Simulado[]>(SIMULADOS_EXEMPLO);
+  const [isSimuladosLoading, setIsSimuladosLoading] = useState(true);
   const [filtroNivel, setFiltroNivel] = useState<NivelFiltro>('Todos');
   const [filtroMateria, setFiltroMateria] = useState('Todas');
   const [filtroTempo, setFiltroTempo] = useState<TempoFiltro>('Todos');
   const [filtroQuestoes, setFiltroQuestoes] = useState<QuestoesFiltro>('Todas');
+  const [filtroFeitos, setFiltroFeitos] = useState<FeitosFiltro>('Todos');
+  const [draftFiltroMateria, setDraftFiltroMateria] = useState('Todas');
+  const [draftFiltroTempo, setDraftFiltroTempo] = useState<TempoFiltro>('Todos');
+  const [draftFiltroQuestoes, setDraftFiltroQuestoes] = useState<QuestoesFiltro>('Todas');
+  const [draftFiltroFeitos, setDraftFiltroFeitos] = useState<FeitosFiltro>('Todos');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const clearFilters = () => {
@@ -197,12 +218,86 @@ export default function SimuladosPage() {
     setFiltroMateria('Todas');
     setFiltroTempo('Todos');
     setFiltroQuestoes('Todas');
+    setFiltroFeitos('Todos');
+    setDraftFiltroMateria('Todas');
+    setDraftFiltroTempo('Todos');
+    setDraftFiltroQuestoes('Todas');
+    setDraftFiltroFeitos('Todos');
   };
+
+  const clearDraftFilters = () => {
+    setDraftFiltroMateria('Todas');
+    setDraftFiltroTempo('Todos');
+    setDraftFiltroQuestoes('Todas');
+    setDraftFiltroFeitos('Todos');
+  };
+
+  const openFilterModal = () => {
+    setDraftFiltroMateria(filtroMateria);
+    setDraftFiltroTempo(filtroTempo);
+    setDraftFiltroQuestoes(filtroQuestoes);
+    setDraftFiltroFeitos(filtroFeitos);
+    setIsFilterModalOpen(true);
+  };
+
+  const applyFilters = () => {
+    setFiltroMateria(draftFiltroMateria);
+    setFiltroTempo(draftFiltroTempo);
+    setFiltroQuestoes(draftFiltroQuestoes);
+    setFiltroFeitos(draftFiltroFeitos);
+    setIsFilterModalOpen(false);
+  };
+
+  // Ler simulados concluídos do localStorage (id array) no mount
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const raw = window.localStorage.getItem('completed_simulados');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as string[];
+      if (Array.isArray(parsed)) setCompletedSimulados(parsed);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSimulados = async () => {
+      try {
+        const data = await simuladoService.list();
+
+        if (isMounted && data.length > 0) {
+          setSimulados(data);
+        }
+      } catch {
+        if (isMounted) {
+          setSimulados(SIMULADOS_EXEMPLO);
+        }
+      } finally {
+        if (isMounted) {
+          setIsSimuladosLoading(false);
+        }
+      }
+    };
+
+    void loadSimulados();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const materiaOptions = useMemo(
+    () => ['Todas', ...Array.from(new Set(simulados.map((simulado) => simulado.categoria))).sort()],
+    [simulados],
+  );
 
   const simuladosFiltrados = useMemo(() => {
     const query = busca.trim().toLowerCase();
 
-    return SIMULADOS_EXEMPLO.filter((simulado) => {
+    return simulados.filter((simulado) => {
       const matchBusca =
         !query ||
         simulado.titulo.toLowerCase().includes(query) ||
@@ -221,10 +316,21 @@ export default function SimuladosPage() {
         (filtroQuestoes === 'Ate10' && simulado.questoes <= 10) ||
         (filtroQuestoes === '11-15' && simulado.questoes >= 11 && simulado.questoes <= 15) ||
         (filtroQuestoes === '16+' && simulado.questoes >= 16);
+      const isCompleted = typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id);
 
-      return matchBusca && matchNivel && matchMateria && matchTempo && matchQuestoes;
+      const matchFeitos =
+        filtroFeitos === 'Todos' ||
+        (filtroFeitos === 'Feitos' && isCompleted) ||
+        (filtroFeitos === 'NaoFeitos' && !isCompleted);
+
+      return matchBusca && matchNivel && matchMateria && matchTempo && matchQuestoes && matchFeitos;
     });
-  }, [busca, filtroNivel, filtroMateria, filtroTempo, filtroQuestoes]);
+  }, [busca, filtroNivel, filtroMateria, filtroTempo, filtroQuestoes, filtroFeitos, simulados, completedSimulados]);
+
+  // Disponibilidade para filtros de status: usa o backend quando vier com `feito`, com fallback local
+  const hasAnyFeito = simulados.some((simulado) => (typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id)));
+
+  const hasAnyNaoFeito = simulados.some((simulado) => !(typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id)));
 
   const totalFiltrados = simuladosFiltrados.length;
   const totalMaterias = new Set(simuladosFiltrados.map((simulado) => simulado.categoria)).size;
@@ -244,7 +350,7 @@ export default function SimuladosPage() {
   };
 
   const handleIniciarSimulado = (id: string) => {
-    const simulado = SIMULADOS_EXEMPLO.find((item) => item.id === id);
+    const simulado = simulados.find((item) => item.id === id);
     if (!simulado) return;
 
     router.push(`/simulados/${encodeURIComponent(simulado.titulo)}/${levelToPathSegment(simulado.nivel)}`);
@@ -280,7 +386,7 @@ export default function SimuladosPage() {
                 type="button"
                 className="simulados-icon-button"
                 aria-label="Abrir filtros"
-                onClick={() => setIsFilterModalOpen(true)}
+                onClick={openFilterModal}
               >
                 <FilterIcon />
               </button>
@@ -363,14 +469,9 @@ export default function SimuladosPage() {
                   </div>
                 </div>
                 <div className="simulados-filter-section">
-                  <h3>Tipo de matéria</h3>
-                  <select
-                    className="simulados-filter-select"
-                    aria-label="Filtrar por matéria"
-                    value={filtroMateria}
-                    onChange={(e) => setFiltroMateria(e.target.value)}
-                  >
-                    {MATERIA_OPTIONS.map((materia) => (
+                  <h3>TIPO DE MATÉRIA</h3>
+                  <select value={draftFiltroMateria} onChange={(e) => setDraftFiltroMateria(e.target.value)}>
+                    {materiaOptions.map((materia) => (
                       <option key={materia} value={materia}>
                         {materia}
                       </option>
@@ -378,48 +479,61 @@ export default function SimuladosPage() {
                   </select>
                 </div>
                 <div className="simulados-filter-section">
-                  <h3>Quantidade de questões</h3>
-                  <div className="simulados-filter-chips">
-                    {QUESTOES_OPTIONS.map((opcao) => (
+                  <h3>QUANTIDADE DE QUESTÕES</h3>
+                  <div className="btn-group">
+                    {QUESTOES_OPTIONS.map(({ value, label }) => (
                       <button
-                        key={opcao.value}
-                        type="button"
-                        className={`simulados-filter-chip ${filtroQuestoes === opcao.value ? 'simulados-filter-chip--active' : ''}`}
-                        onClick={() => setFiltroQuestoes(opcao.value)}
+                        key={value}
+                        className={`btn ${draftFiltroQuestoes === value ? 'active' : ''}`}
+                        onClick={() => setDraftFiltroQuestoes(value)}
                       >
-                        {opcao.label}
+                        {label}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="simulados-filter-section">
-                  <h3>Tempo de simulado</h3>
-                  <div className="simulados-filter-chips">
-                    {TEMPO_OPTIONS.map((opcao) => (
+                  <h3>TEMPO DE SIMULADO</h3>
+                  <div className="btn-group">
+                    {TEMPO_OPTIONS.map(({ value, label }) => (
                       <button
-                        key={opcao.value}
-                        type="button"
-                        className={`simulados-filter-chip ${filtroTempo === opcao.value ? 'simulados-filter-chip--active' : ''}`}
-                        onClick={() => setFiltroTempo(opcao.value)}
+                        key={value}
+                        className={`btn ${draftFiltroTempo === value ? 'active' : ''}`}
+                        onClick={() => setDraftFiltroTempo(value)}
                       >
-                        {opcao.label}
+                        {label}
                       </button>
                     ))}
                   </div>
                 </div>
+                <div className="simulados-filter-section">
+                  <h3>STATUS</h3>
+                  <div className="btn-group">
+                    {FEITOS_OPTIONS.map(({ value, label }) => {
+                      const isDisabled = (value === 'Feitos' && !hasAnyFeito) || (value === 'NaoFeitos' && !hasAnyNaoFeito);
+                      return (
+                        <button
+                          key={value}
+                          className={`btn ${draftFiltroFeitos === value ? 'active' : ''} ${isDisabled ? 'btn--disabled' : ''}`}
+                          onClick={() => !isDisabled && setDraftFiltroFeitos(value)}
+                          disabled={isDisabled}
+                          title={isDisabled ? 'Não há simulados nessa categoria ainda' : undefined}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-              <div className="simulados-filter-footer">
-                <button
-                  type="button"
-                  className="simulados-filter-button simulados-filter-button--ghost"
-                  onClick={clearFilters}
-                >
+              <div className="modal-footer">
+                <button className="btn-clear" onClick={clearDraftFilters}>
                   Limpar filtros
                 </button>
                 <button
                   type="button"
                   className="simulados-filter-button simulados-filter-button--primary"
-                  onClick={() => setIsFilterModalOpen(false)}
+                  onClick={applyFilters}
                 >
                   Aplicar
                 </button>
@@ -428,7 +542,12 @@ export default function SimuladosPage() {
           </div>
         ) : null}
 
-        {simuladosFiltrados.length > 0 ? (
+        {isSimuladosLoading ? (
+          <div className="simulados-empty-state">
+            <h2>Carregando simulados...</h2>
+            <p>Buscando a lista no backend.</p>
+          </div>
+        ) : simuladosFiltrados.length > 0 ? (
           <section className="simulados-grid" aria-label="Lista de simulados">
             {simuladosFiltrados.map((simulado, index) => (
               <article key={simulado.id} className="simulado-card" style={{ animationDelay: `${index * 45}ms` }}>
@@ -458,7 +577,7 @@ export default function SimuladosPage() {
                 </div>
 
                 <button type="button" className="simulado-card-action" onClick={() => handleIniciarSimulado(simulado.id)}>
-                  Iniciar Simulado
+                  Detalhes do simulado
                 </button>
               </article>
             ))}

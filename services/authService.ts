@@ -134,14 +134,35 @@ export const authService = {
     }
 
     try {
-      const response = await api.post<LoginResponse>('/auth/login', credentials);
+      const formData = new URLSearchParams({
+        username: credentials.email.trim().toLowerCase(),
+        password: credentials.password,
+      });
 
-      if (response.data.access_token) {
-        localStorage.setItem(ACCESS_TOKEN_KEY, response.data.access_token);
-        localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data.user_data));
+      const response = await axios.post(`${API_URL}/auth/login`, formData, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        withCredentials: true,
+      });
+
+      const accessToken = response.data.access_token ?? response.data.token;
+
+      if (accessToken) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+        localStorage.setItem('auth_token', accessToken);
       }
 
-      return response.data;
+      const currentUser = response.data.user_data ?? (accessToken ? await this.getMe() : null);
+
+      if (currentUser) {
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(currentUser));
+      }
+
+      return {
+        success: true,
+        access_token: accessToken ?? '',
+        user_data: currentUser ?? ({} as User),
+        message: response.data.message,
+      };
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {
         throw new Error('Backend indisponível. Ative o modo mock com NEXT_PUBLIC_USE_MOCK_AUTH=true.');
