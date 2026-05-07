@@ -5,7 +5,7 @@ export interface Simulado {
   nivel: 'Fácil' | 'Médio' | 'Difícil';
   questoes: number;
   tempoEstimado: number; // em minutos
-  categoria: string;
+  materia: string;
   imagem?: string;
   feito?: boolean;
 }

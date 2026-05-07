@@ -23,7 +23,7 @@ export default function AdminSimulados() {
     nivel: 'Médio' as const,
     questoes: '',
     tempoEstimado: '',
-    categoria: '',
+    materia: '',
   });
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function AdminSimulados() {
         nivel: simulado.nivel,
         questoes: String(simulado.questoes),
         tempoEstimado: String(simulado.tempoEstimado),
-        categoria: simulado.categoria,
+        materia: simulado.materia,
       });
     } else {
       setEditingId(null);
@@ -62,7 +62,7 @@ export default function AdminSimulados() {
         nivel: 'Médio',
         questoes: '',
         tempoEstimado: '',
-        categoria: '',
+        materia: '',
       });
     }
     setIsModalOpen(true);
@@ -77,7 +77,7 @@ export default function AdminSimulados() {
       nivel: 'Médio',
       questoes: '',
       tempoEstimado: '',
-      categoria: '',
+      materia: '',
     });
   };
 
@@ -167,7 +167,7 @@ export default function AdminSimulados() {
                     <th style={{ width: '100px' }}>Nível</th>
                     <th style={{ width: '100px' }}>Questões</th>
                     <th style={{ width: '100px' }}>Tempo (min)</th>
-                    <th style={{ width: '120px' }}>Categoria</th>
+                    <th style={{ width: '120px' }}>Matéria</th>
                     <th style={{ width: '100px' }} className="text-center">Ações</th>
                   </tr>
                 </thead>
@@ -190,7 +190,7 @@ export default function AdminSimulados() {
                       </td>
                       <td className="text-center">{simulado.questoes}</td>
                       <td className="text-center">{simulado.tempoEstimado}</td>
-                      <td className="text-[#64748b]">{simulado.categoria}</td>
+                      <td className="text-[#64748b]">{simulado.materia}</td>
                       <td>
                         <div className="flex gap-2 justify-center">
                           <button
@@ -278,15 +278,15 @@ export default function AdminSimulados() {
                 </div>
 
                 <div className="admin-form-group">
-                  <label htmlFor="categoria" className="admin-label">
-                    Categoria *
+                  <label htmlFor="materia" className="admin-label">
+                    Matéria *
                   </label>
                   <input
-                    id="categoria"
-                    name="categoria"
+                    id="materia"
+                    name="materia"
                     type="text"
                     placeholder="Ex: Português"
-                    value={formData.categoria}
+                    value={formData.materia}
                     onChange={handleChange}
                     className="admin-input"
                     required

@@ -73,7 +73,7 @@ function normalizeSimulado(item: SimuladoApiItem): Simulado {
     nivel,
     questoes,
     tempoEstimado,
-    categoria,
+    materia: categoria,
     imagem: item.imagem ?? item.image,
     feito: item.feito ?? item.completed ?? item.is_completed,
   };

@@ -20,7 +20,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Médio',
     questoes: 10,
     tempoEstimado: 30,
-    categoria: 'Gramática',
+    materia: 'Gramática',
     feito: false,
   },
   {
@@ -30,7 +30,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Fácil',
     questoes: 8,
     tempoEstimado: 20,
-    categoria: 'Pontuação',
+    materia: 'Pontuação',
     feito: false,
   },
   {
@@ -40,7 +40,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Difícil',
     questoes: 15,
     tempoEstimado: 45,
-    categoria: 'Ortografia',
+    materia: 'Ortografia',
     feito: false,
   },
   {
@@ -50,7 +50,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Médio',
     questoes: 12,
     tempoEstimado: 35,
-    categoria: 'Acentuação',
+    materia: 'Acentuação',
     feito: false,
   },
   {
@@ -60,7 +60,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Difícil',
     questoes: 14,
     tempoEstimado: 40,
-    categoria: 'Gramática',
+    materia: 'Gramática',
     feito: false,
   },
   {
@@ -70,7 +70,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Médio',
     questoes: 10,
     tempoEstimado: 30,
-    categoria: 'Interpretação',
+    materia: 'Interpretação',
     feito: false,
   },
   {
@@ -80,7 +80,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Médio',
     questoes: 16,
     tempoEstimado: 45,
-    categoria: 'Gramática',
+    materia: 'Gramática',
     feito: false,
   },
   {
@@ -90,7 +90,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Fácil',
     questoes: 10,
     tempoEstimado: 25,
-    categoria: 'Gramática',
+    materia: 'Gramática',
     feito: false,
   },
   {
@@ -100,7 +100,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Difícil',
     questoes: 12,
     tempoEstimado: 40,
-    categoria: 'Literatura',
+    materia: 'Literatura',
     feito: false,
   },
   {
@@ -110,7 +110,7 @@ const SIMULADOS_EXEMPLO: Simulado[] = [
     nivel: 'Fácil',
     questoes: 10,
     tempoEstimado: 20,
-    categoria: 'Semântica',
+    materia: 'Semântica',
     feito: false,
   },
 ];
@@ -290,7 +290,7 @@ export default function SimuladosPage() {
   }, []);
 
   const materiaOptions = useMemo(
-    () => ['Todas', ...Array.from(new Set(simulados.map((simulado) => simulado.categoria))).sort()],
+    () => ['Todas', ...Array.from(new Set(simulados.map((simulado) => simulado.materia))).sort()],
     [simulados],
   );
 
@@ -302,10 +302,10 @@ export default function SimuladosPage() {
         !query ||
         simulado.titulo.toLowerCase().includes(query) ||
         simulado.descricao.toLowerCase().includes(query) ||
-        simulado.categoria.toLowerCase().includes(query);
+        simulado.materia.toLowerCase().includes(query);
 
       const matchNivel = filtroNivel === 'Todos' || simulado.nivel === filtroNivel;
-      const matchMateria = filtroMateria === 'Todas' || simulado.categoria === filtroMateria;
+      const matchMateria = filtroMateria === 'Todas' || simulado.materia === filtroMateria;
       const matchTempo =
         filtroTempo === 'Todos' ||
         (filtroTempo === 'Ate20' && simulado.tempoEstimado <= 20) ||
@@ -333,7 +333,7 @@ export default function SimuladosPage() {
   const hasAnyNaoFeito = simulados.some((simulado) => !(typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id)));
 
   const totalFiltrados = simuladosFiltrados.length;
-  const totalMaterias = new Set(simuladosFiltrados.map((simulado) => simulado.categoria)).size;
+  const totalMaterias = new Set(simuladosFiltrados.map((simulado) => simulado.materia)).size;
   const totalQuestoes = simuladosFiltrados.reduce((acc, simulado) => acc + simulado.questoes, 0);
 
   const getNivelClass = (nivel: string) => {
@@ -572,7 +572,7 @@ export default function SimuladosPage() {
                   </div>
                   <div>
                     <BookIcon />
-                    <span>{simulado.categoria}</span>
+                    <span>{simulado.materia}</span>
                   </div>
                 </div>
 
