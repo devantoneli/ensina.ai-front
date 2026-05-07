@@ -1,0 +1,199 @@
+================================================================================
+                      DOCUMENTAÇÃO - ENDPOINTS DE CHAT
+================================================================================
+
+1) CHAT LIVRE (FREE MODE)
+================================================================================
+
+URL: POST /free-mode/
+Autenticação: REQUERIDA (Bearer JWT)
+
+DESCRIÇÃO:
+Endpoint de conversa pedagógica com dois comportamentos automáticos:
+
+- study_plan: quando a pergunta tem match forte com disciplinas/conteúdos do banco,
+  a API responde ensinando e também recomenda trilha.
+
+- pedagogical_support: quando a mensagem é mais conversacional ou sem match forte,
+  a API responde de forma acolhedora/didática, sem gerar trilha.
+
+Observação importante:
+- Fontes do tipo VIDEO são excluídas das recomendações.
+
+
+REQUISIÇÃO
+================================================================================
+
+Método: POST
+URL: http://localhost:8000/free-mode/?question=<pergunta>
+
+Headers obrigatórios:
+- Authorization: Bearer <token_jwt>
+
+Query params:
+- question (string, obrigatório)
+
+Exemplo cURL:
+curl -X POST "http://localhost:8000/free-mode/?question=Bem-vindo%20a%20casa%20tem%20crase%20no%20a" \
+  -H "Authorization: Bearer seu_token_jwt"
+
+Exemplo Frontend (fetch):
+const token = "seu_token_jwt";
+const question = "Bem-vindo a casa tem crase no a?";
+
+const res = await fetch(
+  `http://localhost:8000/free-mode/?question=${encodeURIComponent(question)}`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+  }
+);
+
+const data = await res.json();
+
+
+RESPOSTA 200 - MODO study_plan
+================================================================================
+
+{
+  "state": "teaching",
+  "conversation_mode": "study_plan",
+  "classification": {
+    "discipline": "Português",
+    "contents": ["Uso da Crase", "Regência Nominal"],
+    "content_ids": [12, 21],
+    "available_disciplines": ["Português", "Matemática"],
+    "matched_sources": [
+      {
+        "id": 8,
+        "name": "Guia de Crase",
+        "source_type": "ARTICLE",
+        "url": "https://...",
+        "description": "...",
+        "is_validated": true,
+        "related_content": "Uso da Crase"
+      }
+    ],
+    "status": "matched",
+    "top_score": 6,
+    "confidence": 0.46,
+    "recommendation_eligible": true,
+    "message": "Classificação baseada nos conteúdos cadastrados no banco de dados.",
+    "context_items": [ ... ]
+  },
+  "teaching": {
+    "direct_answer": "Resposta objetiva para a dúvida",
+    "explanation": "Explicação didática curta",
+    "study_tips": ["Dica 1", "Dica 2", "Dica 3"],
+    "check_question": "Pergunta para validar compreensão"
+  },
+  "trail": {
+    "trail": [
+      {
+        "title": "Módulo 1",
+        "activities": ["Atividade A", "Atividade B"],
+        "prerequisites": [],
+        "recommended_sources": [
+          {
+            "name": "Guia de Crase",
+            "url": "https://...",
+            "reason": "Consolida a base teórica"
+          }
+        ]
+      }
+    ]
+  },
+  "recommended_studies": [
+    {
+      "content": "Uso da Crase",
+      "reason": "Base da sua dúvida",
+      "sources": [
+        {"name": "Guia de Crase", "url": "https://..."}
+      ]
+    }
+  ]
+}
+
+
+RESPOSTA 200 - MODO pedagogical_support
+================================================================================
+
+{
+  "state": "teaching",
+  "conversation_mode": "pedagogical_support",
+  "classification": {
+    "discipline": null,
+    "contents": [],
+    "content_ids": [],
+    "available_disciplines": ["Português", "Matemática"],
+    "matched_sources": [],
+    "status": "support",
+    "top_score": 1,
+    "confidence": 0.12,
+    "recommendation_eligible": false,
+    "message": "Classificação baseada nos conteúdos cadastrados no banco de dados.",
+    "context_items": []
+  },
+  "teaching": {
+    "direct_answer": "Resposta acolhedora e objetiva",
+    "explanation": "Apoio pedagógico em linguagem simples",
+    "study_tips": ["Dica prática 1", "Dica prática 2"],
+    "check_question": "Pergunta de continuidade da conversa"
+  },
+  "trail": {
+    "trail": []
+  },
+  "recommended_studies": []
+}
+
+
+REGRAS DE USO NO FRONTEND
+================================================================================
+
+1. Sempre ler conversation_mode.
+
+2. Se conversation_mode = study_plan:
+   - mostrar teaching
+   - mostrar trilha
+   - mostrar recommended_studies
+
+3. Se conversation_mode = pedagogical_support:
+   - mostrar apenas teaching
+   - ocultar trilha e recomendações
+
+4. Para UX melhor:
+   - mantenha mensagens em formato de conversa
+   - mostre trilha só quando vier conteúdo em trail.trail
+
+
+ERROS COMUNS
+================================================================================
+
+400 Bad Request
+- Quando question vier vazio.
+Exemplo:
+{
+  "detail": "O parâmetro 'question' não pode ser vazio."
+}
+
+401 Unauthorized
+- Token ausente/inválido/expirado.
+
+500 Internal Server Error
+- Falha do Ollama ou retorno inválido de JSON.
+
+
+FLUXO INTERNO (RESUMO)
+================================================================================
+
+1. Valida JWT e question.
+2. Classifica pela base interna (disciplinas + conteúdos + fontes não-vídeo).
+3. Se recommendation_eligible = true:
+   - gera teaching + trilha + recomendações.
+4. Se recommendation_eligible = false:
+   - gera apenas apoio pedagógico conversacional.
+
+================================================================================

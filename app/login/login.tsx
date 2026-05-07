@@ -80,15 +80,27 @@ export default function LoginPage() {
 
       const parsed = (data ?? {}) as { access_token?: string; token?: string; user_data?: unknown };
       const token = parsed.access_token || parsed.token;
+      
+      let redirectPath = '/chat';
+
       if (typeof window !== 'undefined' && token) {
         window.localStorage.setItem('access_token', token);
         window.localStorage.setItem('auth_token', token);
-        if (parsed.user_data) {
-          window.localStorage.setItem('user_data', JSON.stringify(parsed.user_data));
+        
+        try {
+          // Import dynamic to avoid Next.js SSR issues if needed, or use fetch
+          const { authService } = await import('@/services/authService');
+          const userData = await authService.getMe();
+          
+          if (userData && userData.role === 'admin') {
+            redirectPath = '/admin';
+          }
+        } catch (err) {
+          console.error("Falha ao buscar dados do usuário após login", err);
         }
       }
 
-      router.push('/chat');
+      router.push(redirectPath);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Falha ao fazer login.');
     } finally {

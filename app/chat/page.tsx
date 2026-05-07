@@ -1,8 +1,12 @@
-﻿'use client';
+'use client';
 
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import { chatService } from '@/services/chatService';
+import { ChatMessageRequest } from '@/types/chat';
+import ReactMarkdown from 'react-markdown';
+import './chat.css';
 
 type ChatMessage = {
   id: string;
@@ -17,7 +21,7 @@ type FreeModeResponse = {
     discipline?: string;
     contents?: string[];
   };
-  trail?: {
+  trail?: string | {
     trail?: Array<{
       title?: string;
       activities?: string[];
@@ -285,9 +289,12 @@ function inferContentsFromQuestion(question: string): string[] {
   return unique.slice(0, 6).map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 }
 
-function formatAssistantReply(question: string, data: FreeModeResponse | null, ok: boolean): string {
+function formatAssistantReply(question: string, data: any, ok: boolean): string {
   if (!ok) {
-    return data?.detail ?? data?.message ?? 'Nao foi possivel processar sua pergunta no momento.';
+    if (data?.detail && Array.isArray(data.detail)) {
+      return 'Erro de validação nos dados enviados.';
+    }
+    return (typeof data?.detail === 'string' ? data.detail : data?.message) ?? 'Nao foi possivel processar sua pergunta no momento.';
   }
 
   if (!data) {
@@ -337,6 +344,7 @@ function ChatContent() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [mode, setMode] = useState<'chat_responde' | 'modo_ensino'>('chat_responde');
   const [userName, setUserName] = useState('');
   const [storageKey, setStorageKey] = useState('');
   const [contentIndex, setContentIndex] = useState(0);
@@ -583,39 +591,32 @@ function ChatContent() {
     appendMessage(sessionId, userMessage);
 
     try {
-      const token =
-        typeof window !== 'undefined'
-          ? window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token')
-          : null;
+      const currentSession = sessions.find((s) => s.id === sessionId);
+      const pastMessages = currentSession?.messages || [];
+      
+      const historyToSend: ChatMessageRequest[] = [...pastMessages, userMessage].map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        content: msg.content
+      }));
 
-      if (!token) {
-        appendMessage(sessionId, {
-          id: makeId(),
-          role: 'assistant',
-          content: 'Sua sessao expirou. Faca login novamente para continuar.',
-          createdAt: new Date().toISOString(),
-        });
-        return;
-      }
+      const response = await chatService.sendMessage(historyToSend, mode);
 
-      const response = await fetch(`/api/chat?question=${encodeURIComponent(question)}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = (await response.json().catch(() => null)) as FreeModeResponse | null;
+      const data: FreeModeResponse = {
+        state: response.state,
+        message: response.message,
+        classification: response.classification,
+        trail: response.trail,
+      };
 
       appendMessage(
         sessionId,
         {
           id: makeId(),
           role: 'assistant',
-          content: formatAssistantReply(question, data, response.ok),
+          content: response.message,
           createdAt: new Date().toISOString(),
         },
-        response.ok ? data : undefined,
+        data
       );
     } catch {
       appendMessage(sessionId, {
@@ -682,6 +683,17 @@ function ChatContent() {
                 </div>
               </div>
 
+              <h3 className="mt-8 text-[22px] font-semibold text-[#1f2937]">Trilhas</h3>
+              <div className="mt-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_22px_rgba(34,67,111,0.12)]">
+                {activeSession?.latestAnalysis?.trail ? (
+                  <div className="text-[14px] leading-relaxed text-[#4b5563] user-bubble-text">
+                    <ReactMarkdown>{typeof activeSession.latestAnalysis.trail === 'string' ? activeSession.latestAnalysis.trail : 'Trilha gerada (formato antigo)'}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-[#6b7b8f]">Sua trilha gerada aparecerá aqui.</p>
+                )}
+              </div>
+
               <h3 className="mt-8 text-[22px] font-semibold text-[#1f2937]">Conversas anteriores</h3>
 
               <div className="mt-4 space-y-3 pb-6">
@@ -738,8 +750,8 @@ function ChatContent() {
                         </div>
 
                         <div className="mt-3 space-y-2">
-                          {preview.map((topic) => (
-                            <div key={topic} className="rounded-full bg-[#ededed] px-3 py-1.5 text-[11px] text-[#4b5563]">
+                          {preview.map((topic, i) => (
+                            <div key={`${topic}-${i}`} className="rounded-full bg-[#ededed] px-3 py-1.5 text-[11px] text-[#4b5563]">
                               {topic}
                             </div>
                           ))}
@@ -773,6 +785,24 @@ function ChatContent() {
                     <p className="text-[12px] text-[#6b7b8f]">{greetingLine}</p>
                   ) : null}
                   <p className="text-[28px] font-semibold text-[#1f2937]">O que vamos estudar hoje?</p>
+                  
+                  <div className="user-mode-selector mt-4">
+                    <button
+                      type="button"
+                      className={`user-mode-button ${mode === 'chat_responde' ? 'user-mode-button--active' : ''}`}
+                      onClick={() => setMode('chat_responde')}
+                    >
+                      Chat Responde
+                    </button>
+                    <button
+                      type="button"
+                      className={`user-mode-button ${mode === 'modo_ensino' ? 'user-mode-button--active modo-ensina' : ''}`}
+                      onClick={() => setMode('modo_ensino')}
+                    >
+                      Modo Ensina
+                    </button>
+                  </div>
+
                   <form
                     onSubmit={handleSend}
                     className="w-full max-w-[640px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
@@ -815,7 +845,9 @@ function ChatContent() {
                             {assistantMetaSubtitle ? `${assistantMetaTitle} - ${assistantMetaSubtitle}` : assistantMetaTitle}
                           </p>
                         ) : null}
-                        <p className="whitespace-pre-line text-[15px] leading-6">{message.content}</p>
+                        <div className="whitespace-pre-line text-[15px] leading-6 user-bubble-text">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -825,7 +857,23 @@ function ChatContent() {
             </div>
 
             {hasMessages ? (
-              <footer className="sticky bottom-0 pb-6">
+              <footer className="sticky bottom-0 pb-6 flex flex-col items-center gap-3">
+                <div className="user-mode-selector">
+                  <button
+                    type="button"
+                    className={`user-mode-button ${mode === 'chat_responde' ? 'user-mode-button--active' : ''}`}
+                    onClick={() => setMode('chat_responde')}
+                  >
+                    Chat Responde
+                  </button>
+                  <button
+                    type="button"
+                    className={`user-mode-button ${mode === 'modo_ensino' ? 'user-mode-button--active modo-ensina' : ''}`}
+                    onClick={() => setMode('modo_ensino')}
+                  >
+                    Modo Ensina
+                  </button>
+                </div>
                 <form
                   onSubmit={handleSend}
                   className="mx-auto flex w-full max-w-[900px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"

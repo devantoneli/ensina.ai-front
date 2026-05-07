@@ -1,10 +1,18 @@
 'use client';
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
-import type { SidebarItem } from '@/types/chat';
+import { chatService } from '@/services/chatService';
+import type { SidebarItem, ChatMessageRequest, ChatClassification, KnowledgeSourceRef } from '@/types/chat';
+import ReactMarkdown from 'react-markdown';
+
+interface UIMessage {
+  role: 'user' | 'model';
+  content: string;
+  sources?: KnowledgeSourceRef[];
+}
 import './chat.css';
 
 const sidebarItems: SidebarItem[] = [
@@ -128,6 +136,24 @@ export default function UserChatPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isResultsOpen, setIsResultsOpen] = useState(false);
 
+  // Estados do Chat
+  const [mode, setMode] = useState<'chat_responde' | 'modo_ensino'>('chat_responde');
+  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [trail, setTrail] = useState<string>('');
+  const [classification, setClassification] = useState<ChatClassification | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.replace('/login');
@@ -153,6 +179,47 @@ export default function UserChatPage() {
   const closePanels = () => {
     setIsSidebarOpen(false);
     setIsResultsOpen(false);
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMsg = inputValue.trim();
+    setInputValue('');
+    setIsLoading(true);
+
+    const newMessages: UIMessage[] = [
+      ...messages,
+      { role: 'user', content: userMsg }
+    ];
+    setMessages(newMessages);
+
+    try {
+      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+      const response = await chatService.sendMessage(apiMessages, mode);
+      
+      setMessages([
+        ...newMessages,
+        { role: 'model', content: response.message, sources: response.sources }
+      ]);
+
+      if (response.trail) {
+        setTrail(response.trail);
+        // Quando recebe trilha, abre o painel automaticamente (se não for mobile pequeno)
+        if (window.innerWidth > 1023) {
+           setIsResultsOpen(true);
+        }
+      }
+      if (response.classification) {
+        setClassification(response.classification);
+      }
+    } catch (error) {
+      console.error('Falha ao enviar mensagem', error);
+      // Aqui você poderia adicionar um toast de erro ou mensagem de sistema
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -257,34 +324,114 @@ export default function UserChatPage() {
           </header>
 
           <section className="user-message-area">
-            <div className="user-empty-chat">
-              <div className="user-empty-chat-icon">
-                <EmptyStateIcon />
+            {messages.length === 0 ? (
+              <div className="user-empty-chat">
+                <div className="user-empty-chat-icon">
+                  <EmptyStateIcon />
+                </div>
+                <h2 className="user-empty-chat-title">Como posso ajudar?</h2>
+                <p className="user-empty-chat-text">
+                  Selecione o modo "Tira-Dúvidas" para respostas rápidas ou "Modo Ensina" para gerar uma trilha de aprendizado personalizada baseada na sua dúvida.
+                </p>
               </div>
-              <h2 className="user-empty-chat-title">Nenhuma conversa disponível</h2>
-              <p className="user-empty-chat-text">
-                Esta área está pronta para receber mensagens, histórico e estados do chat assim que o backend for conectado.
-              </p>
-            </div>
+            ) : (
+              <div className="user-message-stack">
+                {messages.map((msg, index) => (
+                  <div key={index} className={`user-message-row ${msg.role === 'user' ? 'user-message-row--user' : ''}`}>
+                    {msg.role === 'model' && (
+                      <div className="user-avatar user-avatar--assistant">
+                        <Image src="/assets/login/8449060e38dcb948c8eccbc3c8aaac60f16a99f0.png" width={24} height={20} alt="AI" />
+                      </div>
+                    )}
+                    <div className={`user-bubble ${msg.role === 'user' ? 'user-bubble--user' : 'user-bubble--assistant'}`}>
+                      {msg.role === 'model' && msg.sources && msg.sources.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                          {msg.sources.map((src, i) => (
+                            <div key={i} style={{ backgroundColor: 'white', border: '1px solid #bae6fd', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '0.85rem', flex: '1 1 auto', minWidth: '200px' }}>
+                              <div style={{ fontWeight: 700, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                {src.url ? (
+                                  <a href={src.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#0284c7' }} onMouseOver={e => e.currentTarget.style.textDecoration='underline'} onMouseOut={e => e.currentTarget.style.textDecoration='none'}>{src.name}</a>
+                                ) : (
+                                  <span>{src.name}</span>
+                                )}
+                              </div>
+                              {src.contents && src.contents.length > 0 && (
+                                <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                  {src.contents.map((c, j) => (
+                                    <span key={j} style={{ fontSize: '0.65rem', backgroundColor: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', fontWeight: 600 }}>
+                                      {c.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="user-bubble-text">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                    {msg.role === 'user' && (
+                      <div className="user-avatar user-avatar--user">
+                        <ProfileIcon />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="user-message-row">
+                    <div className="user-avatar user-avatar--assistant">
+                      <Image src="/assets/login/8449060e38dcb948c8eccbc3c8aaac60f16a99f0.png" width={24} height={20} alt="AI" />
+                    </div>
+                    <div className="user-bubble user-bubble--assistant">
+                      <div className="user-bubble-text">
+                        <p>Digitando...</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </section>
 
           <footer className="user-input-bar">
-            <div className="user-input-form">
-              <input
-                type="text"
-                className="user-input user-input--disabled"
-                placeholder="Aguardando integração com backend..."
-                disabled
-              />
+            <div className="user-mode-selector">
               <button
                 type="button"
+                className={`user-mode-button ${mode === 'chat_responde' ? 'user-mode-button--active' : ''}`}
+                onClick={() => setMode('chat_responde')}
+              >
+                Chat Responde
+              </button>
+              <button
+                type="button"
+                className={`user-mode-button ${mode === 'modo_ensino' ? 'user-mode-button--active modo-ensina' : ''}`}
+                onClick={() => setMode('modo_ensino')}
+              >
+                Modo Ensina
+              </button>
+            </div>
+            <form className="user-input-form" onSubmit={handleSendMessage}>
+              <input
+                type="text"
+                className="user-input"
+                placeholder={mode === 'chat_responde' ? "Faça uma pergunta rápida..." : "Sobre o que você quer aprender hoje?"}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
                 className="user-send-button"
-                disabled
-                aria-label="Envio disponível após integração com backend"
+                disabled={!inputValue.trim() || isLoading}
+                aria-label="Enviar mensagem"
               >
                 <SendIcon />
               </button>
-            </div>
+            </form>
           </footer>
         </main>
 
@@ -299,22 +446,51 @@ export default function UserChatPage() {
 
           <div className="user-results-section">
             <p className="user-results-label">Conteúdos</p>
-            <div className="user-empty-panel user-empty-panel--results">
-              <p className="user-empty-panel-title">Sem conteúdos ainda</p>
-              <p className="user-empty-panel-text">
-                Os cards de conteúdo aparecerão aqui quando o backend enviar resultados do chat.
-              </p>
-            </div>
+            {classification && classification.contents && classification.contents.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: '4px' }}>
+                  Disciplina: <strong>{classification.discipline}</strong>
+                </div>
+                {classification.contents.map((content, idx) => (
+                  <div key={idx} className="user-content-card" style={{ marginTop: 0 }}>
+                    <div className="user-content-header">
+                      <div className="user-content-badge">📚</div>
+                      <div>
+                        <div className="user-content-subject">{classification.discipline}</div>
+                        <div className="user-content-topic" style={{ fontSize: '1rem', fontWeight: 600, opacity: 1, marginTop: '2px' }}>
+                          {content}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="user-empty-panel user-empty-panel--results">
+                <p className="user-empty-panel-title">Sem conteúdos ainda</p>
+                <p className="user-empty-panel-text">
+                  Os cards de conteúdo aparecerão aqui quando você iniciar o Modo Ensina.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="user-trails">
             <p className="user-results-label">Trilhas</p>
-            <div className="user-empty-panel user-empty-panel--results">
-              <p className="user-empty-panel-title">Sem trilhas vinculadas</p>
-              <p className="user-empty-panel-text">
-                As trilhas serão listadas aqui assim que existirem dados associados à conversa.
-              </p>
-            </div>
+            {trail ? (
+              <div style={{ marginTop: '12px', fontSize: '0.9rem', lineHeight: 1.6, color: '#444' }}>
+                 <div className="user-bubble-text" style={{ background: 'rgba(255,255,255,0.4)', padding: '16px', borderRadius: '12px' }}>
+                   <ReactMarkdown>{trail}</ReactMarkdown>
+                 </div>
+              </div>
+            ) : (
+              <div className="user-empty-panel user-empty-panel--results">
+                <p className="user-empty-panel-title">Sem trilhas vinculadas</p>
+                <p className="user-empty-panel-text">
+                  As trilhas serão listadas aqui assim que você enviar uma dúvida no Modo Ensina.
+                </p>
+              </div>
+            )}
           </div>
         </aside>
       </div>
