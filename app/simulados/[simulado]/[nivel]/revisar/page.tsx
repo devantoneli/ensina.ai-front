@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import { simuladoService } from '@/services/simuladoService';
 import '../../../simulados.css';
 
 type OptionLabel = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -95,6 +96,22 @@ function createPlaceholderQuestions(title: string, level: string): SimuladoQuest
   });
 }
 
+function generateCorrectAnswers(questions: SimuladoQuestion[]): Record<string, OptionLabel> {
+  const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
+  const result: Record<string, OptionLabel> = {};
+
+  questions.forEach((question) => {
+    const hash = Array.from(question.id).reduce((acc, char) => {
+      return ((acc << 5) - acc) + char.charCodeAt(0);
+    }, 0);
+    
+    const index = Math.abs(hash) % labels.length;
+    result[question.id] = labels[index];
+  });
+
+  return result;
+}
+
 export default function SimuladoRevisarPage() {
   const router = useRouter();
   const params = useParams<{ simulado: string; nivel: string }>();
@@ -103,8 +120,8 @@ export default function SimuladoRevisarPage() {
 
   const titulo = simulado ? safeDecode(simulado) : 'Simulado';
   const nivelExibido = nivel ? levelLabel(safeDecode(nivel)) : 'Nível';
-  const questions = useMemo(() => createPlaceholderQuestions(titulo, nivelExibido), [titulo, nivelExibido]);
   
+  const [questions, setQuestions] = useState<SimuladoQuestion[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<string, OptionLabel>>({});
   const [correctAnswers, setCorrectAnswers] = useState<Record<string, OptionLabel>>({});
   const [loading, setLoading] = useState(true);
@@ -112,32 +129,87 @@ export default function SimuladoRevisarPage() {
   const simuladoCompletionKey = useMemo(() => normalizeCompletionKey(titulo, nivelExibido), [titulo, nivelExibido]);
 
   useEffect(() => {
-    try {
-      if (typeof window === 'undefined') {
+    let isMounted = true;
+
+    const loadQuestionsAndAnswers = async () => {
+      let tempQuestions: SimuladoQuestion[] = [];
+      let tempCorrectAnswers: Record<string, OptionLabel> = {};
+      let usedRealQuestions = false;
+
+      try {
+        const examsList = await simuladoService.list();
+        const foundExam = examsList.find(
+          (e) => e.titulo.toLowerCase().trim() === titulo.toLowerCase().trim()
+        );
+
+        if (foundExam && isMounted) {
+          const apiQuestions = await simuladoService.getQuestions(foundExam.id);
+          if (apiQuestions && apiQuestions.length > 0) {
+            tempQuestions = apiQuestions.map((q) => {
+              const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
+              return {
+                id: String(q.id),
+                statement: q.description,
+                options: q.alternatives.slice(0, 5).map((alt: any, altIdx: number) => ({
+                  label: labels[altIdx] || 'A',
+                  text: alt.description
+                }))
+              };
+            });
+
+            apiQuestions.forEach((q) => {
+              const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
+              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt: any) => alt.is_correct);
+              tempCorrectAnswers[String(q.id)] = labels[correctIdx >= 0 ? correctIdx : 0];
+            });
+
+            usedRealQuestions = true;
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar questões para revisão, usando placeholders...', err);
+      }
+
+      if (isMounted) {
+        if (!usedRealQuestions) {
+          tempQuestions = createPlaceholderQuestions(titulo, nivelExibido);
+          tempCorrectAnswers = generateCorrectAnswers(tempQuestions);
+        }
+
+        setQuestions(tempQuestions);
+
+        try {
+          const answersKey = `simulado_answers_${simuladoCompletionKey}`;
+          const storedAnswers = window.localStorage.getItem(answersKey);
+          if (storedAnswers) {
+            setUserAnswers(JSON.parse(storedAnswers) as Record<string, OptionLabel>);
+          }
+
+          if (usedRealQuestions) {
+            setCorrectAnswers(tempCorrectAnswers);
+          } else {
+            const correctKey = `simulado_correct_answers_${simuladoCompletionKey}`;
+            const storedCorrect = window.localStorage.getItem(correctKey);
+            if (storedCorrect) {
+              setCorrectAnswers(JSON.parse(storedCorrect) as Record<string, OptionLabel>);
+            } else {
+              setCorrectAnswers(tempCorrectAnswers);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading answers from localStorage:', error);
+        }
+
         setLoading(false);
-        return;
       }
+    };
 
-      const answersKey = `simulado_answers_${simuladoCompletionKey}`;
-      const correctKey = `simulado_correct_answers_${simuladoCompletionKey}`;
+    loadQuestionsAndAnswers();
 
-      const storedAnswers = window.localStorage.getItem(answersKey);
-      const storedCorrect = window.localStorage.getItem(correctKey);
-
-      if (storedAnswers) {
-        setUserAnswers(JSON.parse(storedAnswers) as Record<string, OptionLabel>);
-      }
-
-      if (storedCorrect) {
-        setCorrectAnswers(JSON.parse(storedCorrect) as Record<string, OptionLabel>);
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading answers:', error);
-      setLoading(false);
-    }
-  }, [simuladoCompletionKey]);
+    return () => {
+      isMounted = false;
+    };
+  }, [titulo, nivelExibido, simuladoCompletionKey]);
 
   const handleVoltar = () => {
     router.push('/simulados');
@@ -149,7 +221,7 @@ export default function SimuladoRevisarPage() {
         <ChatSidebar />
         <main className="simulados-shell simulados-detail">
           <section className="simulado-runner">
-            <p>Carregando revisão...</p>
+            <p className="text-center text-[#64748b]">Carregando revisão...</p>
           </section>
         </main>
       </div>

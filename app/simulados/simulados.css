@@ -1195,6 +1195,19 @@ select {
   font-weight: 600;
 }
 
+.simulado-score-display--danger {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+}
+
+.simulado-score-display--danger h2 {
+  color: #ef4444 !important;
+}
+
+.simulado-score-display--danger p {
+  color: #b91c1c !important;
+}
+
 .simulado-score-percentage {
   display: flex;
   flex-direction: column;

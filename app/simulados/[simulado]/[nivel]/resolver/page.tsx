@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import { simuladoService } from '@/services/simuladoService';
 import '../../../simulados.css';
 
 type OptionLabel = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -100,7 +101,6 @@ function generateCorrectAnswers(questions: SimuladoQuestion[]): Record<string, O
   const result: Record<string, OptionLabel> = {};
 
   questions.forEach((question) => {
-    // Generate a deterministic answer based on question ID
     const hash = Array.from(question.id).reduce((acc, char) => {
       return ((acc << 5) - acc) + char.charCodeAt(0);
     }, 0);
@@ -120,11 +120,71 @@ export default function SimuladoResolverPage() {
 
   const titulo = simulado ? safeDecode(simulado) : 'Simulado';
   const nivelExibido = nivel ? levelLabel(safeDecode(nivel)) : 'Nível';
-  const questions = useMemo(() => createPlaceholderQuestions(titulo, nivelExibido), [titulo, nivelExibido]);
+  
+  const [questions, setQuestions] = useState<SimuladoQuestion[]>([]);
+  const [realCorrectAnswers, setRealCorrectAnswers] = useState<Record<string, OptionLabel>>({});
+  const [loading, setLoading] = useState(true);
+  
   const [answers, setAnswers] = useState<Record<string, OptionLabel>>({});
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
   const simuladoCompletionKey = useMemo(() => normalizeCompletionKey(titulo, nivelExibido), [titulo, nivelExibido]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadQuestions = async () => {
+      try {
+        const examsList = await simuladoService.list();
+        const foundExam = examsList.find(
+          (e) => e.titulo.toLowerCase().trim() === titulo.toLowerCase().trim()
+        );
+
+        if (foundExam && isMounted) {
+          const apiQuestions = await simuladoService.getQuestions(foundExam.id);
+          if (apiQuestions && apiQuestions.length > 0) {
+            const mappedQuestions: SimuladoQuestion[] = apiQuestions.map((q) => {
+              const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
+              return {
+                id: String(q.id),
+                statement: q.description,
+                options: q.alternatives.slice(0, 5).map((alt: any, altIdx: number) => ({
+                  label: labels[altIdx] || 'A',
+                  text: alt.description
+                }))
+              };
+            });
+
+            const correctMap: Record<string, OptionLabel> = {};
+            apiQuestions.forEach((q) => {
+              const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
+              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt: any) => alt.is_correct);
+              correctMap[String(q.id)] = labels[correctIdx >= 0 ? correctIdx : 0];
+            });
+
+            setQuestions(mappedQuestions);
+            setRealCorrectAnswers(correctMap);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar questões reais, usando placeholders...', err);
+      }
+
+      if (isMounted) {
+        const placeholders = createPlaceholderQuestions(titulo, nivelExibido);
+        setQuestions(placeholders);
+        setLoading(false);
+      }
+    };
+
+    loadQuestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [titulo, nivelExibido]);
 
   const answeredCount = useMemo(
     () => questions.filter((question) => Boolean(answers[question.id])).length,
@@ -142,21 +202,19 @@ export default function SimuladoResolverPage() {
     
     try {
       if (typeof window !== 'undefined') {
-        // Save completion key
         const raw = window.localStorage.getItem('completed_simulado_keys');
         const keys = raw ? (JSON.parse(raw) as string[]) : [];
         const unique = Array.isArray(keys) ? Array.from(new Set([...keys, simuladoCompletionKey])) : [simuladoCompletionKey];
         window.localStorage.setItem('completed_simulado_keys', JSON.stringify(unique));
 
-        // Generate correct answers
-        const correctAnswers = generateCorrectAnswers(questions);
+        const correctAnswers = Object.keys(realCorrectAnswers).length > 0
+          ? realCorrectAnswers
+          : generateCorrectAnswers(questions);
         
-        // Calculate score
         const correct = questions.filter((q) => answers[q.id] === correctAnswers[q.id]).length;
         const total = questions.length;
         const percentage = Math.round((correct / total) * 100);
 
-        // Save answers and correct answers
         window.localStorage.setItem(`simulado_answers_${simuladoCompletionKey}`, JSON.stringify(answers));
         window.localStorage.setItem(`simulado_correct_answers_${simuladoCompletionKey}`, JSON.stringify(correctAnswers));
         window.localStorage.setItem(
@@ -168,7 +226,6 @@ export default function SimuladoResolverPage() {
       console.error('Error saving result:', error);
     }
 
-    // Redirect to results page
     const nivelEncoded = encodeURIComponent(nivel ?? 'medio');
     router.push(`/simulados/${encodeURIComponent(titulo)}/${nivelEncoded}/resultado`);
   };
@@ -178,6 +235,17 @@ export default function SimuladoResolverPage() {
     setIsExitModalOpen(false);
     router.push('/simulados');
   };
+
+  if (loading) {
+    return (
+      <div className="simulados-page">
+        <ChatSidebar />
+        <main className="simulados-shell simulados-detail">
+          <div className="py-12 text-center text-[#64748b]">Carregando questões do simulado...</div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="simulados-page">

@@ -135,7 +135,7 @@ export default function SimuladoResultadoPage() {
           </header>
 
           <div className="simulado-result-score">
-            <div className="simulado-score-display">
+            <div className={`simulado-score-display ${result.percentage < 70 ? 'simulado-score-display--danger' : ''}`}>
               <h2>{result.correct}/{result.total}</h2>
               <p>Questões acertadas</p>
             </div>

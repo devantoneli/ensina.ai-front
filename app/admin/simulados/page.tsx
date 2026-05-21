@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { simuladoService } from '@/services/simuladoService';
 import { Simulado } from '@/types/simulados';
 
@@ -200,10 +201,16 @@ export default function AdminSimulados() {
     <>
       <header className="admin-main-header">
         <h2 className="admin-title">Gerenciar Simulados</h2>
-        <button className="admin-btn-primary" onClick={() => handleOpenModal()}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Novo Simulado
-        </button>
+        <div className="flex gap-3">
+          <Link href="/admin/simulados/questoes" className="admin-btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line><circle cx="12" cy="12" r="10"></circle></svg>
+            Gerenciar Questões
+          </Link>
+          <button className="admin-btn-primary" onClick={() => handleOpenModal()}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Novo Simulado
+          </button>
+        </div>
       </header>
 
       <div className="admin-content-area">

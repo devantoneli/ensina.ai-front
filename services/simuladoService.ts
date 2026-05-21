@@ -136,4 +136,9 @@ export const simuladoService = {
   async remove(examId: string | number): Promise<void> {
     await api.delete(`/exams/${examId}`);
   },
+
+  async getQuestions(examId: string | number): Promise<any[]> {
+    const response = await api.get<any[]>(`/exams/${examId}/questions`);
+    return response.data;
+  },
 };
