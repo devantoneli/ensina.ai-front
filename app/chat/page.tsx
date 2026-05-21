@@ -3,9 +3,8 @@
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import TutorMarkdown from '@/components/TutorMarkdown';
 import { chatService } from '@/services/chatService';
-import { ChatMessageRequest } from '@/types/chat';
-import ReactMarkdown from 'react-markdown';
 import './chat.css';
 
 type ChatMessage = {
@@ -13,23 +12,69 @@ type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  sources?: Array<{
+    name?: string;
+    url?: string;
+    contents?: Array<{ name?: string }>;
+  }>;
 };
 
 type FreeModeResponse = {
   state?: string;
+  conversation_mode?: 'study_plan' | 'pedagogical_support' | string;
   classification?: {
     discipline?: string;
     contents?: string[];
+    content_ids?: number[];
+    available_disciplines?: string[];
+    status?: string;
+    top_score?: number;
+    confidence?: number;
+    recommendation_eligible?: boolean;
+    message?: string;
+  };
+  teaching?: {
+    direct_answer?: string;
+    explanation?: string;
+    study_tips?: string[];
+    check_question?: string;
   };
   trail?: string | {
     trail?: Array<{
       title?: string;
       activities?: string[];
       prerequisites?: string[];
+      recommended_sources?: Array<{
+        name?: string;
+        url?: string;
+        reason?: string;
+      }>;
     }>;
   };
+  recommended_studies?: Array<{
+    content?: string;
+    reason?: string;
+    sources?: Array<{ name?: string; url?: string }>;
+  }>;
   detail?: string;
   message?: string;
+};
+
+type TrailModule = {
+  title?: string;
+  activities?: string[];
+  prerequisites?: string[];
+  recommended_sources?: Array<{
+    name?: string;
+    url?: string;
+    reason?: string;
+  }>;
+};
+
+type TrailSource = {
+  name?: string;
+  url?: string;
+  reason?: string;
 };
 
 type ChatSession = {
@@ -289,53 +334,137 @@ function inferContentsFromQuestion(question: string): string[] {
   return unique.slice(0, 6).map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 }
 
-function formatAssistantReply(question: string, data: any, ok: boolean): string {
+function buildAssistantMarkdown(question: string, data: FreeModeResponse | null, ok: boolean): string {
   if (!ok) {
     if (data?.detail && Array.isArray(data.detail)) {
-      return 'Erro de validação nos dados enviados.';
+      return '## Erro de validação\n\nOs dados enviados não puderam ser processados.';
     }
-    return (typeof data?.detail === 'string' ? data.detail : data?.message) ?? 'Nao foi possivel processar sua pergunta no momento.';
+    const errorMessage = (typeof data?.detail === 'string' ? data.detail : data?.message) ?? 'Não foi possível processar sua pergunta no momento.';
+    return `## Não foi possível responder\n\n> ${errorMessage}`;
   }
 
   if (!data) {
-    return `Entendi sua pergunta sobre "${question}". Pode me dar mais contexto para eu aprofundar a explicacao?`;
+    return `## Vamos começar\n\nEntendi sua pergunta sobre **${question}**. Pode me dar mais contexto para eu aprofundar a explicação?`;
   }
 
+  const mode = data.conversation_mode ?? 'pedagogical_support';
   const discipline = data.classification?.discipline;
   const contents: string[] = data.classification?.contents ?? [];
-  const modules: Array<{ title?: string; activities?: string[] }> = Array.isArray(data.trail?.trail)
-    ? data.trail.trail
-    : [];
+  const modules: TrailModule[] = typeof data.trail === 'string' ? [] : data.trail?.trail ?? [];
+  const teaching = data.teaching;
+  const recommendedStudies = data.recommended_studies ?? [];
 
-  if (!discipline && contents.length === 0 && modules.length === 0) {
-    return data.message ?? data.detail ?? `Entendi sua pergunta sobre "${question}". Vamos trabalhar nisso em partes.`;
+  if (data.message && !discipline && contents.length === 0 && modules.length === 0 && !teaching) {
+    return data.message;
+  }
+
+  if (!discipline && contents.length === 0 && modules.length === 0 && !teaching) {
+    return data.message ?? data.detail ?? `## Entendi sua pergunta\n\nVamos trabalhar nisso em partes.`;
   }
 
   const lines: string[] = [];
 
-  if (discipline) {
-    lines.push(`Tema identificado: ${discipline}.`);
+  lines.push(mode === 'study_plan' ? `## ${discipline ?? 'Plano de estudo'}` : '## Apoio pedagógico');
+
+  if (teaching?.direct_answer) {
+    lines.push(`**Resposta direta**\n\n${teaching.direct_answer}`);
+  }
+
+  if (teaching?.explanation) {
+    lines.push(`> ${teaching.explanation}`);
   }
 
   if (contents.length > 0) {
-    lines.push('Pontos relacionados para estudar agora:');
-    contents.slice(0, 4).forEach((content, index) => {
-      lines.push(`${index + 1}. ${content}`);
+    lines.push('### Conteúdos relacionados');
+    contents.slice(0, 4).forEach((content) => {
+      lines.push(`- [[${content}|Conteúdo relacionado e importante para sua dúvida.]]`);
     });
   }
 
+  if (teaching?.study_tips?.length) {
+    lines.push('### Dicas de estudo');
+    teaching.study_tips.slice(0, 4).forEach((tip) => {
+      lines.push(`- ${tip}`);
+    });
+  }
+
+  if (teaching?.check_question) {
+    lines.push('### Verificação rápida');
+    lines.push(`> ${teaching.check_question}`);
+  }
+
   if (modules.length > 0) {
-    lines.push('Sequencia sugerida:');
-    modules.slice(0, 2).forEach((module, index) => {
-      lines.push(`${index + 1}. ${module.title ?? 'Modulo sem titulo'}`);
+    lines.push('### Trilha sugerida');
+    modules.slice(0, 3).forEach((module, index) => {
+      lines.push(`${index + 1}. **${module.title ?? 'Módulo sem título'}**`);
       if (module.activities?.length) {
-        lines.push(`   Atividade: ${module.activities[0]}`);
+        module.activities.slice(0, 4).forEach((activity) => {
+          lines.push(`   - ${activity}`);
+        });
+      }
+      if (module.prerequisites?.length) {
+        lines.push(`   - Pré-requisitos: ${module.prerequisites.join(', ')}`);
+      }
+      if (module.recommended_sources?.length) {
+        lines.push('   - Fontes recomendadas:');
+        module.recommended_sources.forEach((source: TrailSource) => {
+          lines.push(`     - ${source.url ? `[${source.name ?? 'Fonte'}](${source.url})` : source.name ?? 'Fonte'}${source.reason ? ` — ${source.reason}` : ''}`);
+        });
       }
     });
   }
 
-  lines.push('Se quiser, eu te guio no proximo passo com um exercicio curto.');
+  if (recommendedStudies.length > 0) {
+    lines.push('### Estudos recomendados');
+    recommendedStudies.slice(0, 4).forEach((study) => {
+      const title = study.content ?? 'Conteúdo';
+      const reason = study.reason ? ` — ${study.reason}` : '';
+      lines.push(`- **${title}**${reason}`);
+    });
+  }
+
+  lines.push('### Próximo passo');
+  lines.push('Se quiser, eu posso continuar com um exercício curto ou aprofundar algum ponto específico.');
+
   return lines.join('\n');
+}
+
+function buildTrailMarkdown(data: FreeModeResponse | null): string {
+  if (!data?.trail) {
+    return 'Sua trilha gerada aparecerá aqui.';
+  }
+
+  if (typeof data.trail === 'string') {
+    return data.trail;
+  }
+
+  const trailItems = data.trail.trail ?? [];
+  if (trailItems.length === 0) {
+    return 'Nenhuma trilha recomendada no momento.';
+  }
+
+  return trailItems
+    .map((module, index) => {
+      const lines = [`### ${index + 1}. ${module.title ?? 'Módulo sem título'}`];
+
+      if (module.activities?.length) {
+        lines.push(...module.activities.map((activity) => `- ${activity}`));
+      }
+
+      if (module.prerequisites?.length) {
+        lines.push(`> Pré-requisitos: ${module.prerequisites.join(', ')}`);
+      }
+
+      if (module.recommended_sources?.length) {
+        lines.push('**Fontes recomendadas**');
+        module.recommended_sources.forEach((source) => {
+          lines.push(`- ${source.url ? `[${source.name ?? 'Fonte'}](${source.url})` : source.name ?? 'Fonte'}${source.reason ? ` — ${source.reason}` : ''}`);
+        });
+      }
+
+      return lines.join('\n');
+    })
+    .join('\n\n');
 }
 
 function ChatContent() {
@@ -593,21 +722,16 @@ function ChatContent() {
     appendMessage(sessionId, userMessage);
 
     try {
-      const currentSession = sessions.find((s) => s.id === sessionId);
-      const pastMessages = currentSession?.messages || [];
-      
-      const historyToSend: ChatMessageRequest[] = [...pastMessages, userMessage].map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        content: msg.content
-      }));
-
-      const response = await chatService.sendMessage(historyToSend, mode);
+      const response = await chatService.sendMessage(question);
 
       const data: FreeModeResponse = {
         state: response.state,
+        conversation_mode: response.conversation_mode,
         message: response.message,
         classification: response.classification,
+        teaching: response.teaching,
         trail: response.trail,
+        recommended_studies: response.recommended_studies,
       };
 
       appendMessage(
@@ -615,7 +739,7 @@ function ChatContent() {
         {
           id: makeId(),
           role: 'assistant',
-          content: response.message,
+          content: buildAssistantMarkdown(question, data, true),
           createdAt: new Date().toISOString(),
         },
         data
@@ -624,7 +748,7 @@ function ChatContent() {
       appendMessage(sessionId, {
         id: makeId(),
         role: 'assistant',
-        content: 'Nao foi possivel conectar ao servico de IA no momento.',
+        content: buildAssistantMarkdown(question, { message: 'Não foi possível conectar ao serviço de IA no momento.' }, false),
         createdAt: new Date().toISOString(),
       });
     } finally {
@@ -688,9 +812,7 @@ function ChatContent() {
               <h3 className="mt-8 text-[22px] font-semibold text-[#1f2937]">Trilhas</h3>
               <div className="mt-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_22px_rgba(34,67,111,0.12)]">
                 {activeSession?.latestAnalysis?.trail ? (
-                  <div className="text-[14px] leading-relaxed text-[#4b5563] user-bubble-text">
-                    <ReactMarkdown>{typeof activeSession.latestAnalysis.trail === 'string' ? activeSession.latestAnalysis.trail : 'Trilha gerada (formato antigo)'}</ReactMarkdown>
-                  </div>
+                  <TutorMarkdown className="text-[14px] leading-relaxed text-[#4b5563]">{buildTrailMarkdown(activeSession.latestAnalysis)}</TutorMarkdown>
                 ) : (
                   <p className="text-[13px] text-[#6b7b8f]">Sua trilha gerada aparecerá aqui.</p>
                 )}
@@ -847,10 +969,36 @@ function ChatContent() {
                             {assistantMetaSubtitle ? `${assistantMetaTitle} - ${assistantMetaSubtitle}` : assistantMetaTitle}
                           </p>
                         ) : null}
-                        <div className="whitespace-pre-line text-[15px] leading-6 user-bubble-text">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        
+                        {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                            {message.sources.map((src, i) => (
+                              <div key={i} style={{ backgroundColor: 'white', border: '1px solid #bae6fd', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '0.85rem', flex: '1 1 auto', minWidth: '200px' }}>
+                                <div style={{ fontWeight: 700, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                  {src.url ? (
+                                    <a href={src.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#0284c7' }} onMouseOver={e => e.currentTarget.style.textDecoration='underline'} onMouseOut={e => e.currentTarget.style.textDecoration='none'}>{src.name}</a>
+                                  ) : (
+                                    <span>{src.name}</span>
+                                  )}
+                                </div>
+                                {src.contents && src.contents.length > 0 && (
+                                  <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                    {src.contents.map((c, j) => (
+                                      <span key={j} style={{ fontSize: '0.65rem', backgroundColor: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', fontWeight: 600 }}>
+                                        {c.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="text-[15px] leading-6 user-bubble-text">
+                          <TutorMarkdown>{message.content}</TutorMarkdown>
                         </div>
-                        <p className="whitespace-pre-line text-[var(--app-root-font-size)] leading-6">{message.content}</p>
                       </div>
                     </div>
                   ))}
