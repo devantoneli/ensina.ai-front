@@ -1,12 +1,11 @@
 import api from './api';
-import type { ChatMessageRequest, ChatResponse } from '@/types/chat';
+import type { ChatResponse } from '@/types/chat';
 
 export const chatService = {
-  async sendMessage(messages: ChatMessageRequest[], mode: string): Promise<ChatResponse> {
+  async sendMessage(question: string): Promise<ChatResponse> {
     try {
-      const response = await api.post<ChatResponse>('/free-mode', {
-        messages,
-        mode,
+      const response = await api.post<ChatResponse>('/free-mode/', null, {
+        params: { question },
       });
       return response.data;
     } catch (error) {

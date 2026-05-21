@@ -189,18 +189,21 @@ export default function UserChatPage() {
     setInputValue('');
     setIsLoading(true);
 
-    const newMessages: UIMessage[] = [
-      ...messages,
+    // Salva a mensagem atual para envio
+    const currentMessages = [...messages, { role: 'user' as const, content: userMsg }];
+
+    // Atualiza a tela com a mensagem do usuário via functional update
+    setMessages((prev) => [
+      ...prev,
       { role: 'user', content: userMsg }
-    ];
-    setMessages(newMessages);
+    ]);
 
     try {
-      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = currentMessages.map(m => ({ role: m.role, content: m.content }));
       const response = await chatService.sendMessage(apiMessages, mode);
       
-      setMessages([
-        ...newMessages,
+      setMessages((prev) => [
+        ...prev,
         { role: 'model', content: response.message, sources: response.sources }
       ]);
 
