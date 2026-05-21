@@ -308,3 +308,151 @@
   color: #1e293b;
   background: #fff;
 }
+
+/* Grid of simulated exams in Admin */
+.admin-simulados-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 22px 18px;
+  padding-bottom: 20px;
+}
+
+.admin-simulado-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  padding: 18px 16px 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(19, 142, 204, 0.08);
+  border: 1px solid rgba(19, 142, 204, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-simulado-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(19, 142, 204, 0.12);
+}
+
+.admin-simulado-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-simulado-card-book {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #138ecc;
+  color: #ffffff;
+}
+
+.admin-simulado-card-badge {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.admin-simulado-card-badge--easy {
+  color: #10b981;
+}
+
+.admin-simulado-card-badge--medium {
+  color: #f97316;
+}
+
+.admin-simulado-card-badge--hard {
+  color: #ef4444;
+}
+
+.admin-simulado-card h2 {
+  margin: 0;
+  color: #138ecc;
+  font-size: 19px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.admin-simulado-card-text {
+  margin: 10px 0 0;
+  min-height: 54px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-simulado-card-meta {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.admin-simulado-card-meta > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-simulado-card-meta svg {
+  width: 14px;
+  height: 14px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.admin-simulado-card-actions {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.admin-card-action-btn {
+  height: 38px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.admin-card-action-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.admin-card-action-btn--edit {
+  background: #138ecc;
+  color: #ffffff;
+}
+
+.admin-card-action-btn--delete {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.admin-loading, .admin-empty-state {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 48px;
+  text-align: center;
+  color: #64748b;
+  box-shadow: 0 4px 20px rgba(19, 142, 204, 0.08);
+  border: 1px solid rgba(19, 142, 204, 0.1);
+}
+

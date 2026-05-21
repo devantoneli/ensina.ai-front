@@ -10,6 +10,35 @@ const NIVEL_TO_DIFFICULTY: Record<string, string> = {
   'Difícil': 'DIFÍCIL',
 };
 
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="18" height="18">
+      <path d="M6 4.5H18.5C19.3284 4.5 20 5.17157 20 6V19.5H7.5C6.11929 19.5 5 18.3807 5 17V6.5C5 5.39543 5.89543 4.5 7 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M7.5 19.5H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 8.5H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 11.5H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="18" height="18">
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 8V12L15 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function QuestionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="18" height="18">
+      <path d="M9.5 9.5C9.5 7.567 11.067 6 13 6C14.933 6 16.5 7.567 16.5 9.5C16.5 11.1055 15.4164 12.4747 13.9 12.8719C12.7923 13.1622 12 14.162 12 15.3077V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function AdminSimulados() {
   const [simulados, setSimulados] = useState<Simulado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,11 +49,16 @@ export default function AdminSimulados() {
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
-    nivel: 'Médio' as const,
+    nivel: 'Médio' as 'Fácil' | 'Médio' | 'Difícil',
     questoes: '',
     tempoEstimado: '',
     materia: '',
   });
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingTitle, setDeletingTitle] = useState('');
 
   useEffect(() => {
     fetchSimulados();
@@ -129,15 +163,36 @@ export default function AdminSimulados() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este simulado? Essa ação não pode ser desfeita.')) return;
-    
+  const handleOpenDeleteModal = (id: string, titulo: string) => {
+    setDeletingId(id);
+    setDeletingTitle(titulo);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
     try {
-      await simuladoService.remove(id);
+      await simuladoService.remove(deletingId);
+      setIsDeleteModalOpen(false);
+      setDeletingId(null);
+      setDeletingTitle('');
       fetchSimulados();
     } catch (error) {
       console.error('Erro ao excluir simulado:', error);
       alert('Não foi possível excluir o simulado.');
+    }
+  };
+
+  const getNivelClass = (nivel: string) => {
+    switch (nivel) {
+      case 'Fácil':
+        return 'admin-simulado-card-badge--easy';
+      case 'Médio':
+        return 'admin-simulado-card-badge--medium';
+      case 'Difícil':
+        return 'admin-simulado-card-badge--hard';
+      default:
+        return '';
     }
   };
 
@@ -152,70 +207,64 @@ export default function AdminSimulados() {
       </header>
 
       <div className="admin-content-area">
-        <div className="admin-card">
-          {loading ? (
-            <div className="py-12 text-center text-[#64748b]">Carregando simulados...</div>
-          ) : simulados.length === 0 ? (
-            <div className="py-12 text-center text-[#64748b]">Nenhum simulado cadastrado ainda.</div>
-          ) : (
-            <div className="admin-table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '50px' }}>ID</th>
-                    <th>Título</th>
-                    <th style={{ width: '100px' }}>Nível</th>
-                    <th style={{ width: '100px' }}>Questões</th>
-                    <th style={{ width: '100px' }}>Tempo (min)</th>
-                    <th style={{ width: '120px' }}>Matéria</th>
-                    <th style={{ width: '100px' }} className="text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {simulados.map((simulado) => (
-                    <tr key={simulado.id}>
-                      <td className="text-[#64748b] font-mono text-sm">{simulado.id.slice(0, 8)}</td>
-                      <td>
-                        <div className="font-medium text-[#1e293b]">{simulado.titulo}</div>
-                        <div className="text-sm text-[#64748b]">{simulado.descricao}</div>
-                      </td>
-                      <td>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                          simulado.nivel === 'Fácil' ? 'bg-green-100 text-green-700' :
-                          simulado.nivel === 'Médio' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {simulado.nivel}
-                        </span>
-                      </td>
-                      <td className="text-center">{simulado.questoes}</td>
-                      <td className="text-center">{simulado.tempoEstimado}</td>
-                      <td className="text-[#64748b]">{simulado.materia}</td>
-                      <td>
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            className="admin-btn-secondary"
-                            onClick={() => handleOpenModal(simulado)}
-                            title="Editar"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                          </button>
-                          <button
-                            className="admin-btn-danger"
-                            onClick={() => handleDelete(simulado.id)}
-                            title="Deletar"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div className="admin-loading">Carregando simulados...</div>
+        ) : simulados.length === 0 ? (
+          <div className="admin-empty-state">Nenhum simulado cadastrado ainda.</div>
+        ) : (
+          <section className="admin-simulados-grid" aria-label="Lista de simulados">
+            {simulados.map((simulado) => (
+              <article key={simulado.id} className="admin-simulado-card">
+                <div className="admin-simulado-card-top">
+                  <div className="admin-simulado-card-book">
+                    <BookIcon />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-[11px] font-mono text-[#94a3b8]">ID: {simulado.id.slice(0, 8)}</span>
+                    <span className={`admin-simulado-card-badge ${getNivelClass(simulado.nivel)}`}>{simulado.nivel}</span>
+                  </div>
+                </div>
+
+                <h2>{simulado.titulo}</h2>
+                <p className="admin-simulado-card-text">{simulado.descricao}</p>
+
+                <div className="admin-simulado-card-meta">
+                  <div>
+                    <QuestionIcon />
+                    <span>{simulado.questoes} questões</span>
+                  </div>
+                  <div>
+                    <ClockIcon />
+                    <span>{simulado.tempoEstimado} min</span>
+                  </div>
+                  <div>
+                    <BookIcon />
+                    <span>{simulado.materia}</span>
+                  </div>
+                </div>
+
+                <div className="admin-simulado-card-actions">
+                  <button
+                    type="button"
+                    className="admin-card-action-btn admin-card-action-btn--edit"
+                    onClick={() => handleOpenModal(simulado)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-card-action-btn admin-card-action-btn--delete"
+                    onClick={() => handleOpenDeleteModal(simulado.id, simulado.titulo)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    Excluir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
       </div>
 
       {/* Modal */}
@@ -346,6 +395,40 @@ export default function AdminSimulados() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      {isDeleteModalOpen && (
+        <div className="admin-modal-overlay" onClick={() => setIsDeleteModalOpen(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-xl font-bold text-[#ef4444] flex items-center gap-2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              Confirmar Exclusão
+            </h3>
+            
+            <p className="text-sm text-[#475569] mb-6 leading-relaxed">
+              Você tem certeza de que deseja excluir o simulado <strong>"{deletingTitle}"</strong>? Essa ação é permanente e todas as questões associadas também serão excluídas.
+            </p>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                type="button"
+                className="admin-btn-secondary"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="admin-card-action-btn admin-card-action-btn--delete"
+                style={{ width: 'auto', padding: '0 20px' }}
+                onClick={handleConfirmDelete}
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
       )}
