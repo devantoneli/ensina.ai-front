@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { useProgress } from '@/hooks/useProgress';
+import { simuladoService } from '@/services/simuladoService';
 import './desempenho.css';
 
 // ── Ícones SVG inline ──────────────────────────────────────
@@ -73,15 +75,136 @@ function buildConicGradient(slices: { value: number; color: string }[]): string 
 
 export default function DesempenhoPage() {
   const router = useRouter();
-  const { dashboard, isLoading } = useProgress();
+  const { dashboard: backendDashboard, isLoading: isBackendLoading } = useProgress();
+  const [combinedDashboard, setCombinedDashboard] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTopic, setSelectedTopic] = useState('Geral');
 
+  useEffect(() => {
+    if (isBackendLoading) return;
+
+    const mergeData = async () => {
+      try {
+        const examsList = await simuladoService.list();
+        
+        const rawKeys = window.localStorage.getItem('completed_simulado_keys');
+        const completedKeys = rawKeys ? (JSON.parse(rawKeys) as string[]) : [];
+
+        let simulatedCorrect = 0;
+        let simulatedWrong = 0;
+        let simulatedTotal = 0;
+        const simulatedTopicStats: Record<string, { correct: number; wrong: number; total: number }> = {};
+
+        completedKeys.forEach((key) => {
+          const resultRaw = window.localStorage.getItem(`simulado_result_${key}`);
+          if (!resultRaw) return;
+
+          const result = JSON.parse(resultRaw) as { correct: number; total: number; percentage: number };
+          simulatedCorrect += result.correct;
+          simulatedWrong += (result.total - result.correct);
+          simulatedTotal += result.total;
+
+          const [titlePart] = key.split('::');
+          const matchedExam = examsList.find(
+            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === titlePart.trim()
+          );
+          const topic = matchedExam ? matchedExam.materia : 'Simulados';
+
+          if (!simulatedTopicStats[topic]) {
+            simulatedTopicStats[topic] = { correct: 0, wrong: 0, total: 0 };
+          }
+          simulatedTopicStats[topic].correct += result.correct;
+          simulatedTopicStats[topic].wrong += (result.total - result.correct);
+          simulatedTopicStats[topic].total += result.total;
+        });
+
+        const db = backendDashboard
+          ? JSON.parse(JSON.stringify(backendDashboard))
+          : {
+              study_time: { total_messages: 0, total_sessions: 0, last_studied_at: null },
+              accuracy: { total: 0, correct: 0, wrong: 0, accuracy_pct: 0, by_topic: [] },
+              studied_contents: [],
+              weak_topics: []
+            };
+
+        db.study_time.total_sessions += completedKeys.length;
+
+        const backendTopics = db.accuracy.by_topic || [];
+        const mergedTopicsMap: Record<string, { topic: string; correct: number; wrong: number; total: number }> = {};
+
+        backendTopics.forEach((t: any) => {
+          mergedTopicsMap[t.topic] = {
+            topic: t.topic,
+            correct: t.correct,
+            wrong: t.wrong,
+            total: t.total
+          };
+        });
+
+        Object.entries(simulatedTopicStats).forEach(([topicName, stats]) => {
+          if (mergedTopicsMap[topicName]) {
+            mergedTopicsMap[topicName].correct += stats.correct;
+            mergedTopicsMap[topicName].wrong += stats.wrong;
+            mergedTopicsMap[topicName].total += stats.total;
+          } else {
+            mergedTopicsMap[topicName] = {
+              topic: topicName,
+              correct: stats.correct,
+              wrong: stats.wrong,
+              total: stats.total
+            };
+          }
+        });
+
+        const mergedTopicsList = Object.values(mergedTopicsMap).map((t) => ({
+          topic: t.topic,
+          correct: t.correct,
+          wrong: t.wrong,
+          total: t.total,
+          accuracy_pct: t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0
+        }));
+
+        db.accuracy.by_topic = mergedTopicsList;
+
+        const overallCorrect = mergedTopicsList.reduce((sum, t) => sum + t.correct, 0);
+        const overallWrong = mergedTopicsList.reduce((sum, t) => sum + t.wrong, 0);
+        const overallTotal = mergedTopicsList.reduce((sum, t) => sum + t.total, 0);
+        const overallPct = overallTotal > 0 ? Math.round((overallCorrect / overallTotal) * 100) : 0;
+
+        db.accuracy.correct = overallCorrect;
+        db.accuracy.wrong = overallWrong;
+        db.accuracy.total = overallTotal;
+        db.accuracy.accuracy_pct = overallPct;
+
+        const weak = mergedTopicsList.filter((t) => t.accuracy_pct < 70);
+        weak.sort((a, b) => a.accuracy_pct - b.accuracy_pct);
+        db.weak_topics = weak;
+
+        setCombinedDashboard(db);
+      } catch (err) {
+        console.error('Erro ao mesclar dados de simulados no desempenho:', err);
+        setCombinedDashboard(backendDashboard);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void mergeData();
+  }, [backendDashboard, isBackendLoading]);
+
+  const dashboard = combinedDashboard;
   const accuracy     = dashboard?.accuracy;
   const studyTime    = dashboard?.study_time;
   const byTopic      = accuracy?.by_topic ?? [];
   const weakTopics   = dashboard?.weak_topics ?? [];
   const bestTopic    = byTopic.length
-    ? byTopic.reduce((a, b) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
+    ? byTopic.reduce((a, b: any) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
     : null;
+
+  const selectedTopicObj = useMemo(() => {
+    if (selectedTopic === 'Geral') return null;
+    return byTopic.find((t: any) => t.topic === selectedTopic) || null;
+  }, [selectedTopic, byTopic]);
 
   // Slices do gráfico de pizza (mensagens por tópico — proxy de tempo)
   const pieSlices = byTopic.map((t, i) => ({
@@ -136,8 +259,21 @@ export default function DesempenhoPage() {
 
       <main className="desempenho-main">
         {/* Header */}
-        <header className="desempenho-header">
+        <header className="desempenho-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <h1 className="desempenho-title">Análise de Desempenho</h1>
+          
+          <select
+            value={selectedTopic}
+            onChange={(e) => setSelectedTopic(e.target.value)}
+            className="desempenho-topic-select"
+          >
+            <option value="Geral">Filtro: Geral</option>
+            {byTopic.map((t: any) => (
+              <option key={t.topic} value={t.topic}>
+                Filtro: {t.topic}
+              </option>
+            ))}
+          </select>
         </header>
 
         {/* Subtitle */}
@@ -156,7 +292,9 @@ export default function DesempenhoPage() {
                 <div>
                   <p className="desempenho-stat-label">Taxa de Acerto</p>
                   <p className="desempenho-stat-value">
-                    {accuracy?.accuracy_pct != null ? `${accuracy.accuracy_pct}%` : '--%'}
+                    {selectedTopicObj 
+                      ? `${selectedTopicObj.accuracy_pct}%` 
+                      : (accuracy?.accuracy_pct != null ? `${accuracy.accuracy_pct}%` : '--%')}
                   </p>
                 </div>
               </div>
@@ -166,27 +304,41 @@ export default function DesempenhoPage() {
                 <div>
                   <p className="desempenho-stat-label">Questões Resolvidas</p>
                   <p className="desempenho-stat-value">
-                    {accuracy?.total != null ? accuracy.total : '--'}
+                    {selectedTopicObj 
+                      ? selectedTopicObj.total 
+                      : (accuracy?.total != null ? accuracy.total : '--')}
                   </p>
                 </div>
               </div>
 
               <div className="desempenho-stat-card desempenho-stat-card--teal">
-                <div className="desempenho-stat-icon"><IconClock /></div>
+                <div className="desempenho-stat-icon">
+                  {selectedTopicObj ? <IconTrophy /> : <IconClock />}
+                </div>
                 <div>
-                  <p className="desempenho-stat-label">Mensagens Trocadas</p>
+                  <p className="desempenho-stat-label">
+                    {selectedTopicObj ? 'Acertos' : 'Mensagens Trocadas'}
+                  </p>
                   <p className="desempenho-stat-value">
-                    {studyTime?.total_messages != null ? studyTime.total_messages : '--'}
+                    {selectedTopicObj 
+                      ? selectedTopicObj.correct 
+                      : (studyTime?.total_messages != null ? studyTime.total_messages : '--')}
                   </p>
                 </div>
               </div>
 
               <div className="desempenho-stat-card desempenho-stat-card--blue2">
-                <div className="desempenho-stat-icon"><IconTrend /></div>
+                <div className="desempenho-stat-icon">
+                  {selectedTopicObj ? <IconTarget /> : <IconTrend />}
+                </div>
                 <div>
-                  <p className="desempenho-stat-label">% da Melhor Matéria</p>
+                  <p className="desempenho-stat-label">
+                    {selectedTopicObj ? 'Erros' : '% da Melhor Matéria'}
+                  </p>
                   <p className="desempenho-stat-value">
-                    {bestTopic ? `${bestTopic.accuracy_pct}%` : '--%'}
+                    {selectedTopicObj 
+                      ? selectedTopicObj.wrong 
+                      : (bestTopic ? `${bestTopic.accuracy_pct}%` : '--%')}
                   </p>
                 </div>
               </div>
