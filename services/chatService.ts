@@ -1,12 +1,10 @@
 import api from './api';
-import type { ChatResponse } from '@/types/chat';
+import type { ChatResponse, ChatMessageRequest } from '@/types/chat';
 
 export const chatService = {
-  async sendMessage(question: string): Promise<ChatResponse> {
+  async sendMessage(messages: ChatMessageRequest[], mode: string): Promise<ChatResponse> {
     try {
-      const response = await api.post<ChatResponse>('/free-mode/', null, {
-        params: { question },
-      });
+      const response = await api.post<ChatResponse>('/free-mode/', { messages, mode });
       return response.data;
     } catch (error) {
       console.error('Erro ao enviar mensagem para o chat:', error);

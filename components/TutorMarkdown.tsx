@@ -15,7 +15,7 @@ type TutorMarkdownProps = {
 };
 
 const TERM_PATTERN = /\[\[([^|\]]+)\|([^\]]+)\]\]/g;
-const PLACEHOLDER_PATTERN = /\u2063TERM(\d+)\u2063/g;
+const PLACEHOLDER_PATTERN = /⁣TERM(\d+)⁣/g;
 
 function extractTerms(content: string): { markdown: string; terms: Term[] } {
   const terms: Term[] = [];
@@ -23,7 +23,7 @@ function extractTerms(content: string): { markdown: string; terms: Term[] } {
   const markdown = content.replace(TERM_PATTERN, (_match, term: string, explanation: string) => {
     const index = terms.length;
     terms.push({ term: term.trim(), explanation: explanation.trim() });
-    return `\u2063TERM${index}\u2063`;
+    return `⁣TERM${index}⁣`;
   });
 
   return { markdown, terms };
@@ -42,7 +42,7 @@ function TermPopover({ term, explanation }: Term) {
 }
 
 function renderPlaceholderText(text: string, terms: Term[]) {
-  const nodes: Array<string | JSX.Element> = [];
+  const nodes: Array<string | React.ReactElement> = [];
   let lastIndex = 0;
 
   for (const match of text.matchAll(PLACEHOLDER_PATTERN)) {
@@ -80,11 +80,14 @@ function processChildren(children: React.ReactNode, terms: Term[]): React.ReactN
       return child;
     }
 
-    if (isValidElement(child) && child.props?.children) {
-      return cloneElement(child, {
-        key: child.key ?? childIndex,
-        children: processChildren(child.props.children, terms),
-      });
+    if (isValidElement(child)) {
+      const childProps = child.props as Record<string, unknown>;
+      if (childProps.children !== undefined) {
+        return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+          key: child.key ?? childIndex,
+          children: processChildren(childProps.children as React.ReactNode, terms),
+        });
+      }
     }
 
     return child;
@@ -125,24 +128,25 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
           {processChildren(nodeChildren, terms)}
         </a>
       ),
-      code: ({ children: nodeChildren, inline, className: codeClassName, ...props }: any) => {
+      // Block code styling lives here; `code` below handles only the inner element.
+      pre: ({ children: nodeChildren, ...props }: React.ComponentProps<'pre'>) => (
+        <pre {...props} className="tutor-code-block">{nodeChildren}</pre>
+      ),
+      code: ({ children: nodeChildren, inline, className: codeClassName, ...props }: React.ComponentProps<'code'> & { inline?: boolean }) => {
         const content = processChildren(nodeChildren, terms);
 
-        if (inline) {
+        // react-markdown v7 passes inline=false for block code; v8+ omits it entirely.
+        // When inline is explicitly false, wrap in <pre> (v7 compat path).
+        // Otherwise render as bare <code> — block code is already wrapped by the `pre` component.
+        if (inline === false) {
           return (
-            <code {...props} className={codeClassName}>
-              {content}
-            </code>
+            <pre className="tutor-code-block">
+              <code {...props} className={codeClassName}>{content}</code>
+            </pre>
           );
         }
 
-        return (
-          <pre className="tutor-code-block">
-            <code {...props} className={codeClassName}>
-              {content}
-            </code>
-          </pre>
-        );
+        return <code {...props} className={codeClassName}>{content}</code>;
       },
       table: ({ children: nodeChildren, ...props }: React.ComponentProps<'table'>) => (
         <div className="tutor-table-wrap">

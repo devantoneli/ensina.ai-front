@@ -354,14 +354,22 @@ function buildAssistantMarkdown(question: string, data: FreeModeResponse | null,
   const teaching = data.teaching;
   const recommendedStudies = data.recommended_studies ?? [];
 
-  if (data.message && !discipline && contents.length === 0 && modules.length === 0 && !teaching) {
-    return data.message;
+  // Sem estrutura teaching: usa o message da IA diretamente.
+  // O message já contém a resposta completa formatada em Markdown.
+  if (!teaching && data.message) {
+    const disciplineTag =
+      discipline
+        ? `*${[discipline, ...contents.slice(0, 3)].filter(Boolean).join(' — ')}*\n\n`
+        : '';
+    return disciplineTag + data.message;
   }
 
+  // Fallback genérico quando não há nada aproveitável
   if (!discipline && contents.length === 0 && modules.length === 0 && !teaching) {
     return data.message ?? data.detail ?? `## Entendi sua pergunta\n\nVamos trabalhar nisso em partes.`;
   }
 
+  // Caminho legado: resposta estruturada via campos teaching.* (retrocompatibilidade)
   const lines: string[] = [];
 
   lines.push(mode === 'study_plan' ? `## ${discipline ?? 'Plano de estudo'}` : '## Apoio pedagógico');
@@ -722,7 +730,7 @@ function ChatContent() {
     appendMessage(sessionId, userMessage);
 
     try {
-      const response = await chatService.sendMessage(question);
+      const response = await chatService.sendMessage([{ role: 'user', content: question }], mode);
 
       const data: FreeModeResponse = {
         state: response.state,

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
 import { chatService } from '@/services/chatService';
-import type { SidebarItem, ChatMessageRequest, ChatClassification, KnowledgeSourceRef } from '@/types/chat';
+import type { SidebarItem, ChatMessageRequest, ChatClassification, KnowledgeSourceRef, FreeModeTrailModule } from '@/types/chat';
 import ReactMarkdown from 'react-markdown';
 
 interface UIMessage {
@@ -141,7 +141,7 @@ export default function UserChatPage() {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [trail, setTrail] = useState<string>('');
+  const [trail, setTrail] = useState<FreeModeTrailModule[] | null>(null);
   const [classification, setClassification] = useState<ChatClassification | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -199,19 +199,18 @@ export default function UserChatPage() {
     ]);
 
     try {
-      const apiMessages = currentMessages.map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = currentMessages.slice(-10).map(m => ({ role: m.role, content: m.content }));
       const response = await chatService.sendMessage(apiMessages, mode);
-      
+
       setMessages((prev) => [
         ...prev,
-        { role: 'model', content: response.message, sources: response.sources }
+        { role: 'model', content: response.message ?? '', sources: response.sources }
       ]);
 
-      if (response.trail) {
-        setTrail(response.trail);
-        // Quando recebe trilha, abre o painel automaticamente (se não for mobile pequeno)
+      if (response.trail && typeof response.trail !== 'string' && response.trail.trail?.length) {
+        setTrail(response.trail.trail);
         if (window.innerWidth > 1023) {
-           setIsResultsOpen(true);
+          setIsResultsOpen(true);
         }
       }
       if (response.classification) {
@@ -480,11 +479,30 @@ export default function UserChatPage() {
 
           <div className="user-trails">
             <p className="user-results-label">Trilhas</p>
-            {trail ? (
-              <div style={{ marginTop: '12px', fontSize: '0.9rem', lineHeight: 1.6, color: '#444' }}>
-                 <div className="user-bubble-text" style={{ background: 'rgba(255,255,255,0.4)', padding: '16px', borderRadius: '12px' }}>
-                   <ReactMarkdown>{trail}</ReactMarkdown>
-                 </div>
+            {trail && trail.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                {trail.map((module, idx) => (
+                  <div key={idx} style={{ background: 'white', borderRadius: '12px', padding: '14px 16px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#0284c7', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                        {idx + 1}
+                      </div>
+                      <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.9rem', lineHeight: 1.3 }}>
+                        {module.title ?? `Módulo ${idx + 1}`}
+                      </span>
+                    </div>
+                    {module.activities && module.activities.length > 0 && (
+                      <ul style={{ margin: 0, paddingLeft: '18px', color: '#475569', fontSize: '0.82rem', lineHeight: 1.7 }}>
+                        {module.activities.map((act, i) => <li key={i}>{act}</li>)}
+                      </ul>
+                    )}
+                    {module.prerequisites && module.prerequisites.length > 0 && (
+                      <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+                        Pré-req: {module.prerequisites.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="user-empty-panel user-empty-panel--results">
