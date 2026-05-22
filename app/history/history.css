@@ -192,3 +192,72 @@
     padding: 18px;
   }
 }
+
+/* ── Simulado item ── */
+.history-item--simulado {
+  align-items: center;
+}
+
+.history-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item--clickable {
+  cursor: pointer;
+}
+
+.history-item--clickable:hover {
+  border-color: rgba(71, 145, 223, 0.45);
+  background: rgba(71, 145, 223, 0.06);
+  box-shadow: 0 8px 20px rgba(52, 95, 145, 0.12);
+}
+
+/* ── Score badge ── */
+.history-item-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.history-score-badge {
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 99px;
+  line-height: 1.4;
+}
+
+.history-score-badge--green  { background: #dcfce7; color: #16a34a; }
+.history-score-badge--yellow { background: #fef3c7; color: #d97706; }
+.history-score-badge--red    { background: #fee2e2; color: #dc2626; }
+
+.history-score-detail {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+/* ── Inline link button ── */
+.history-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2f79cb;
+  font-weight: 600;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.history-link-btn:hover {
+  color: #1a5ba8;
+}
+
+/* ── List card sem min-height fixa quando vazia ── */
+.history-list-card {
+  min-height: unset;
+}
+

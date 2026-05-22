@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { useProgress } from '@/hooks/useProgress';
 import { simuladoService } from '@/services/simuladoService';
+import api from '@/services/api';
 import './desempenho.css';
 
 // ── Ícones SVG inline ──────────────────────────────────────
@@ -79,6 +80,44 @@ export default function DesempenhoPage() {
   const [combinedDashboard, setCombinedDashboard] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState('Geral');
+  const [allTopics, setAllTopics] = useState<string[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [disciplineGroups, setDisciplineGroups] = useState<{ id: number; name: string; contents: { id: number; name: string }[] }[]>([]);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleClose = () => setIsDropdownOpen(false);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [isDropdownOpen]);
+
+  // Busca todas as disciplinas e seus conteúdos do banco de dados
+  useEffect(() => {
+    const fetchDisciplineGroups = async () => {
+      try {
+        const disciplinesRes = await api.get<{ id: number; name: string }[]>('/disciplines/');
+        const disciplines = disciplinesRes.data;
+
+        const groups = await Promise.all(
+          disciplines.map(async (discipline) => {
+            const contentsRes = await api.get<{ id: number; name: string; is_active: boolean }[]>(
+              `/contents/discipline/${discipline.id}`
+            );
+            const activeContents = contentsRes.data
+              .filter((c) => c.is_active)
+              .map((c) => ({ id: c.id, name: c.name }));
+            return { id: discipline.id, name: discipline.name, contents: activeContents };
+          })
+        );
+
+        // Só exibe disciplinas que tenham conteúdos cadastrados
+        setDisciplineGroups(groups.filter((g) => g.contents.length > 0));
+      } catch (err) {
+        console.error('Erro ao buscar disciplinas:', err);
+      }
+    };
+    void fetchDisciplineGroups();
+  }, []);
 
   useEffect(() => {
     if (isBackendLoading) return;
@@ -180,10 +219,30 @@ export default function DesempenhoPage() {
         weak.sort((a, b) => a.accuracy_pct - b.accuracy_pct);
         db.weak_topics = weak;
 
+        const availableTopics = new Set<string>([
+          'Gramática', 'Pontuação', 'Ortografia', 'Acentuação',
+          'Interpretação', 'Literatura', 'Semântica', 'Matemática',
+          'Física', 'Química', 'Biologia', 'História', 'Geografia',
+          'Filosofia', 'Sociologia', 'Inglês'
+        ]);
+        examsList.forEach(e => availableTopics.add(e.materia));
+        mergedTopicsList.forEach(t => availableTopics.add(t.topic));
+        setAllTopics(Array.from(availableTopics).sort());
+
         setCombinedDashboard(db);
       } catch (err) {
         console.error('Erro ao mesclar dados de simulados no desempenho:', err);
         setCombinedDashboard(backendDashboard);
+        const fallbackTopics = new Set<string>([
+          'Gramática', 'Pontuação', 'Ortografia', 'Acentuação',
+          'Interpretação', 'Literatura', 'Semântica', 'Matemática',
+          'Física', 'Química', 'Biologia', 'História', 'Geografia',
+          'Filosofia', 'Sociologia', 'Inglês'
+        ]);
+        if (backendDashboard?.accuracy?.by_topic) {
+          backendDashboard.accuracy.by_topic.forEach((t: any) => fallbackTopics.add(t.topic));
+        }
+        setAllTopics(Array.from(fallbackTopics).sort());
       } finally {
         setIsLoading(false);
       }
@@ -203,54 +262,142 @@ export default function DesempenhoPage() {
 
   const selectedTopicObj = useMemo(() => {
     if (selectedTopic === 'Geral') return null;
-    return byTopic.find((t: any) => t.topic === selectedTopic) || null;
+    return byTopic.find((t: any) => t.topic === selectedTopic) || { topic: selectedTopic, correct: 0, wrong: 0, total: 0, accuracy_pct: 0 };
   }, [selectedTopic, byTopic]);
 
-  // Slices do gráfico de pizza (mensagens por tópico — proxy de tempo)
-  const pieSlices = byTopic.map((t, i) => ({
-    label: t.topic,
-    value: t.total,
-    color: PIE_COLORS[i % PIE_COLORS.length],
-  }));
+  // Slices do gráfico de pizza
+  // No modo Geral: agrupa byTopic por disciplina do banco
+  // Em filtro específico: mostra o slice daquela matéria
+  const pieSlices = useMemo(() => {
+    if (selectedTopic !== 'Geral') {
+      // Slice único para a matéria selecionada
+      const found = byTopic.find((t: any) => t.topic === selectedTopic);
+      if (!found) return [];
+      return [{ label: found.topic, value: found.total, color: PIE_COLORS[0] }];
+    }
 
-  // Recomendações dinâmicas
+    if (disciplineGroups.length === 0) {
+      // Fallback: usa byTopic diretamente
+      return byTopic.map((t: any, i: number) => ({
+        label: t.topic,
+        value: t.total,
+        color: PIE_COLORS[i % PIE_COLORS.length],
+      }));
+    }
+
+    // Agrega byTopic por disciplina
+    const disciplineSlices: { label: string; value: number; color: string }[] = [];
+    disciplineGroups.forEach((discipline, i) => {
+      const contentNames = new Set(discipline.contents.map((c) => c.name));
+      const total = byTopic
+        .filter((t: any) => contentNames.has(t.topic))
+        .reduce((sum: number, t: any) => sum + t.total, 0);
+      if (total > 0) {
+        disciplineSlices.push({
+          label: discipline.name,
+          value: total,
+          color: PIE_COLORS[i % PIE_COLORS.length],
+        });
+      }
+    });
+
+    // Questões sem disciplina mapeada (ex: "Geral", "Simulados")
+    const mappedTopics = new Set(
+      disciplineGroups.flatMap((d) => d.contents.map((c) => c.name))
+    );
+    const unmappedTotal = byTopic
+      .filter((t: any) => !mappedTopics.has(t.topic))
+      .reduce((sum: number, t: any) => sum + t.total, 0);
+    if (unmappedTotal > 0) {
+      disciplineSlices.push({
+        label: 'Outros',
+        value: unmappedTotal,
+        color: PIE_COLORS[disciplineSlices.length % PIE_COLORS.length],
+      });
+    }
+
+    return disciplineSlices.length > 0
+      ? disciplineSlices
+      : byTopic.map((t: any, i: number) => ({
+          label: t.topic,
+          value: t.total,
+          color: PIE_COLORS[i % PIE_COLORS.length],
+        }));
+  }, [byTopic, disciplineGroups, selectedTopic]);
+
+  // Recomendações dinâmicas — respeita o filtro selecionado
   const recs: { type: 'red' | 'yellow' | 'green'; icon: string; title: string; text: string }[] = [];
 
-  if (weakTopics.length > 0) {
-    recs.push({
-      type: 'red',
-      icon: '🎯',
-      title: `Foco em ${weakTopics[0].topic}`,
-      text: `Taxa de acerto de ${weakTopics[0].accuracy_pct}%. Recomendamos praticar mais questões sobre este tópico.`,
-    });
-  }
+  if (selectedTopicObj) {
+    // ── Modo filtro: recomendações baseadas na matéria selecionada ──
+    const pct = selectedTopicObj.accuracy_pct;
+    if (selectedTopicObj.total === 0) {
+      recs.push({
+        type: 'yellow',
+        icon: '💬',
+        title: `Sem dados em ${selectedTopicObj.topic}`,
+        text: 'Ainda não há questões respondidas nesta matéria. Interaja no chat para gerar dados!',
+      });
+    } else if (pct < 50) {
+      recs.push({
+        type: 'red',
+        icon: '🎯',
+        title: `Foco em ${selectedTopicObj.topic}`,
+        text: `Taxa de acerto de ${pct}%. Recomendamos praticar muito mais questões sobre este tópico.`,
+      });
+    } else if (pct < 70) {
+      recs.push({
+        type: 'yellow',
+        icon: '⏰',
+        title: `Melhore em ${selectedTopicObj.topic}`,
+        text: `${pct}% de acerto. Você está progredindo! Revise os conceitos para superar 70%.`,
+      });
+    } else {
+      recs.push({
+        type: 'green',
+        icon: '🏆',
+        title: `Ótimo desempenho em ${selectedTopicObj.topic}!`,
+        text: `${pct}% de acerto. Continue assim e explore tópicos avançados desta matéria.`,
+      });
+    }
+  } else {
+    // ── Modo Geral: recomendações globais ──
+    if (weakTopics.length > 0) {
+      recs.push({
+        type: 'red',
+        icon: '🎯',
+        title: `Foco em ${weakTopics[0].topic}`,
+        text: `Taxa de acerto de ${weakTopics[0].accuracy_pct}%. Recomendamos praticar mais questões sobre este tópico.`,
+      });
+    }
 
-  if (weakTopics.length > 1) {
-    recs.push({
-      type: 'yellow',
-      icon: '⏰',
-      title: `Aumente o tempo em ${weakTopics[1].topic}`,
-      text: `Apenas ${weakTopics[1].accuracy_pct}% de acerto. Revise os conceitos fundamentais.`,
-    });
-  }
+    if (weakTopics.length > 1) {
+      recs.push({
+        type: 'yellow',
+        icon: '⏰',
+        title: `Aumente o tempo em ${weakTopics[1].topic}`,
+        text: `Apenas ${weakTopics[1].accuracy_pct}% de acerto. Revise os conceitos fundamentais.`,
+      });
+    }
 
-  if (bestTopic && bestTopic.accuracy_pct >= 80) {
-    recs.push({
-      type: 'green',
-      icon: '🏆',
-      title: `Excelente em ${bestTopic.topic}!`,
-      text: `${bestTopic.accuracy_pct}% de acerto. Continue assim e explore tópicos avançados.`,
-    });
-  }
+    if (bestTopic && bestTopic.accuracy_pct >= 80) {
+      recs.push({
+        type: 'green',
+        icon: '🏆',
+        title: `Excelente em ${bestTopic.topic}!`,
+        text: `${bestTopic.accuracy_pct}% de acerto. Continue assim e explore tópicos avançados.`,
+      });
+    }
 
-  // Fallback se sem dados
-  if (recs.length === 0 && !isLoading) {
-    recs.push({
-      type: 'yellow',
-      icon: '💬',
-      title: 'Comece a interagir',
-      text: 'Responda questões no chat para receber recomendações personalizadas.',
-    });
+    // Fallback se sem dados no modo Geral
+    if (recs.length === 0 && !isLoading) {
+      recs.push({
+        type: 'yellow',
+        icon: '💬',
+        title: 'Comece a interagir',
+        text: 'Responda questões no chat para receber recomendações personalizadas.',
+      });
+    }
   }
 
   return (
@@ -262,18 +409,57 @@ export default function DesempenhoPage() {
         <header className="desempenho-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <h1 className="desempenho-title">Análise de Desempenho</h1>
           
-          <select
-            value={selectedTopic}
-            onChange={(e) => setSelectedTopic(e.target.value)}
-            className="desempenho-topic-select"
-          >
-            <option value="Geral">Filtro: Geral</option>
-            {byTopic.map((t: any) => (
-              <option key={t.topic} value={t.topic}>
-                Filtro: {t.topic}
-              </option>
-            ))}
-          </select>
+          <div className="desempenho-dropdown-wrapper">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDropdownOpen(prev => !prev);
+              }}
+              className="desempenho-dropdown-trigger"
+            >
+              <span>Matéria: {selectedTopic}</span>
+              <svg 
+                className={`desempenho-dropdown-arrow ${isDropdownOpen ? 'open' : ''}`} 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none"
+              >
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {isDropdownOpen && (
+              <ul className="desempenho-dropdown-menu">
+                <li
+                  className={selectedTopic === 'Geral' ? 'active' : ''}
+                  onClick={() => setSelectedTopic('Geral')}
+                >
+                  Geral
+                </li>
+
+                {/* ── Disciplinas do banco de dados ── */}
+                {disciplineGroups.map((discipline) => (
+                  <>
+                    <li
+                      key={`disc-${discipline.id}`}
+                      className="desempenho-dropdown-group-label"
+                    >
+                      {discipline.name}
+                    </li>
+                    {discipline.contents.map((content) => (
+                      <li
+                        key={`content-${content.id}`}
+                        className={selectedTopic === content.name ? 'active' : ''}
+                        onClick={() => setSelectedTopic(content.name)}
+                      >
+                        {content.name}
+                      </li>
+                    ))}
+                  </>
+                ))}
+              </ul>
+            )}
+          </div>
         </header>
 
         {/* Subtitle */}
@@ -350,51 +536,58 @@ export default function DesempenhoPage() {
               <div className="desempenho-card">
                 <h2 className="desempenho-card-title">Desempenho por Tópico</h2>
 
-                {byTopic.length === 0 ? (
-                  <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
-                    Nenhum tópico registrado ainda. Responda questões no chat!
-                  </p>
-                ) : (
-                  <>
-                    <div className="desempenho-bar-chart">
-                      {byTopic.map((t) => (
-                        <div className="desempenho-bar-row" key={t.topic}>
-                          <span className="desempenho-bar-label">{t.topic}</span>
+                {(() => {
+                  const filteredTopics = selectedTopic === 'Geral'
+                    ? byTopic
+                    : byTopic.filter((t: any) => t.topic === selectedTopic);
+                  return filteredTopics.length === 0 ? (
+                    <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
+                      {selectedTopic === 'Geral'
+                        ? 'Nenhum tópico registrado ainda. Responda questões no chat!'
+                        : `Sem dados de desempenho para "${selectedTopic}" ainda.`}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="desempenho-bar-chart">
+                        {filteredTopics.map((t: any) => (
+                          <div className="desempenho-bar-row" key={t.topic}>
+                            <span className="desempenho-bar-label">{t.topic}</span>
 
-                          <div className="desempenho-bar-track">
-                            <div
-                              className="desempenho-bar-fill desempenho-bar-fill--correct"
-                              style={{ width: `${t.accuracy_pct}%` }}
-                            />
-                          </div>
+                            <div className="desempenho-bar-track">
+                              <div
+                                className="desempenho-bar-fill desempenho-bar-fill--correct"
+                                style={{ width: `${t.accuracy_pct}%` }}
+                              />
+                            </div>
 
-                          <div className="desempenho-bar-track" style={{ height: 6 }}>
-                            <div
-                              className="desempenho-bar-fill desempenho-bar-fill--wrong"
-                              style={{ width: `${100 - t.accuracy_pct}%` }}
-                            />
-                          </div>
+                            <div className="desempenho-bar-track" style={{ height: 6 }}>
+                              <div
+                                className="desempenho-bar-fill desempenho-bar-fill--wrong"
+                                style={{ width: `${100 - t.accuracy_pct}%` }}
+                              />
+                            </div>
 
-                          <div className="desempenho-bar-meta">
-                            <span>{t.correct} acertos</span>
-                            <span>{t.wrong} erros</span>
+                            <div className="desempenho-bar-meta">
+                              <span>{t.correct} acertos</span>
+                              <span>{t.wrong} erros</span>
+                            </div>
                           </div>
+                        ))}
+                      </div>
+
+                      <div className="desempenho-bar-legend">
+                        <div className="desempenho-legend-item">
+                          <div className="desempenho-legend-dot" style={{ background: '#fca5a5' }} />
+                          <span>Erros %</span>
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="desempenho-bar-legend">
-                      <div className="desempenho-legend-item">
-                        <div className="desempenho-legend-dot" style={{ background: '#fca5a5' }} />
-                        <span>Erros %</span>
+                        <div className="desempenho-legend-item">
+                          <div className="desempenho-legend-dot" style={{ background: '#4791df' }} />
+                          <span>Acertos %</span>
+                        </div>
                       </div>
-                      <div className="desempenho-legend-item">
-                        <div className="desempenho-legend-dot" style={{ background: '#4791df' }} />
-                        <span>Acertos %</span>
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Recomendações */}
