@@ -729,36 +729,93 @@ function ChatContent() {
 
     appendMessage(sessionId, userMessage);
 
+    const assistantMessageId = makeId();
+    appendMessage(sessionId, {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      createdAt: new Date().toISOString(),
+      sources: [],
+    });
+
     try {
-      const response = await chatService.sendMessage([{ role: 'user', content: question }], mode);
+      const sessionMessages = sessions.find((session) => session.id === sessionId)?.messages ?? [];
+      const fullHistory = [...sessionMessages, userMessage].map((message) => ({
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: message.content,
+      }));
 
-      const data: FreeModeResponse = {
-        state: response.state,
-        conversation_mode: response.conversation_mode,
-        message: response.message,
-        classification: response.classification,
-        teaching: response.teaching,
-        trail: response.trail,
-        recommended_studies: response.recommended_studies,
-      };
-
-      appendMessage(
-        sessionId,
+      await chatService.streamTutorResponse(
         {
-          id: makeId(),
-          role: 'assistant',
-          content: buildAssistantMarkdown(question, data, true),
-          createdAt: new Date().toISOString(),
+          messages: fullHistory,
+          mode: mode === 'modo_ensino' ? 'ensino' : 'responde',
         },
-        data
+        {
+          onMeta: (meta) => {
+            const metaSources = meta.sources_consulted ?? meta.sources ?? [];
+
+            setSessions((prev) =>
+              prev.map((session) => {
+                if (session.id !== sessionId) return session;
+                return {
+                  ...session,
+                  messages: session.messages.map((message) =>
+                    message.id === assistantMessageId
+                      ? {
+                          ...message,
+                          sources: metaSources.map((source) => ({
+                            name: source.name,
+                            url: source.url,
+                            contents: [],
+                          })),
+                        }
+                      : message,
+                  ),
+                };
+              }),
+            );
+          },
+          onDelta: (token) => {
+            setSessions((prev) =>
+              prev.map((session) => {
+                if (session.id !== sessionId) return session;
+                return {
+                  ...session,
+                  updatedAt: new Date().toISOString(),
+                  messages: session.messages.map((message) =>
+                    message.id === assistantMessageId
+                      ? { ...message, content: `${message.content}${token}` }
+                      : message,
+                  ),
+                };
+              }),
+            );
+          },
+        },
       );
     } catch {
-      appendMessage(sessionId, {
-        id: makeId(),
-        role: 'assistant',
-        content: buildAssistantMarkdown(question, { message: 'Não foi possível conectar ao serviço de IA no momento.' }, false),
-        createdAt: new Date().toISOString(),
-      });
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            messages: session.messages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content:
+                      message.content ||
+                      buildAssistantMarkdown(
+                        question,
+                        { message: 'Não foi possível conectar ao serviço de IA no momento.' },
+                        false,
+                      ),
+                  }
+                : message,
+            ),
+          };
+        }),
+      );
     } finally {
       setIsSending(false);
     }
@@ -1068,4 +1125,3 @@ export default function ChatPage() {
     </Suspense>
   );
 }
-
