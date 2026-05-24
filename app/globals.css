@@ -81,7 +81,8 @@ body {
   font-weight: 700;
 }
 
-.tutor-prose p {
+.tutor-prose p,
+.tutor-prose .tutor-p {
   margin: 0;
 }
 

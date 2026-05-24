@@ -69,8 +69,8 @@ export default function AdminContents() {
       const linkedSourceIds = contentSourcesMap.get(content.id)?.map(s => s.id) || [];
       setFormData({ 
         discipline_id: content.discipline_id,
-        name: content.name, 
-        slug: content.slug,
+        name: content.name || '', 
+        slug: content.slug || '',
         description: content.description || '',
         is_active: content.is_active,
         source_ids: linkedSourceIds

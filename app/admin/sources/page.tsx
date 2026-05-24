@@ -81,7 +81,7 @@ export default function AdminSources() {
       const linkedContentIds = sourceContentsMap.get(source.id)?.map(c => c.id) || [];
       setFormData({
         source_type: source.source_type,
-        name: source.name,
+        name: source.name || '',
         description: source.description || '',
         archive_url: source.archive_url || '',
         is_validated: source.is_validated,
