@@ -67,10 +67,6 @@ function persistSession(user: User): LoginResponse {
   };
 }
 
-function getMockRole(role?: UserRole): UserRole {
-  return role === 'admin' ? 'admin' : 'student';
-}
-
 async function loginWithMock(credentials: LoginRequest): Promise<LoginResponse> {
   const users = readMockUsers();
   const normalizedEmail = credentials.email.trim().toLowerCase();
@@ -98,7 +94,7 @@ async function registerWithMock(data: RegisterRequest): Promise<LoginResponse> {
     name: data.name.trim(),
     email: normalizedEmail,
     password: data.password,
-    role: getMockRole(data.role),
+    role: 'student' as UserRole,
     created_at: timestamp,
     updated_at: timestamp,
   };
@@ -121,7 +117,6 @@ type RegisterPayload = {
   email: string;
   phone?: string;
   password: string;
-  role: 'student' | 'admin';
 };
 
 export const authService = {

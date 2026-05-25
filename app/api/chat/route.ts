@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type ChatRequestBody = {
   messages?: Array<{ role: 'user' | 'system' | 'assistant'; content: string }>;
-  mode?: string;
+  mode?: 'responde' | 'ensino' | string;
+  content_id?: number | null;
+  chat_id?: number | null;
+  exam_id?: number | null;
+  question_id?: number | null;
 };
 
 async function parseBackendResponse(response: Response) {
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'messages é obrigatório.' }, { status: 400 });
   }
 
-  const endpoint = `${backendBaseUrl}/free-mode`;
+  const endpoint = `${backendBaseUrl}/chat-tutor/`;
 
   try {
     const backendResponse = await fetch(endpoint, {
@@ -49,9 +53,29 @@ export async function POST(req: NextRequest) {
         Authorization: authorization,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages: body.messages, mode: body.mode }),
+      body: JSON.stringify({
+        messages: body.messages,
+        mode: body.mode,
+        content_id: body.content_id,
+        chat_id: body.chat_id,
+        exam_id: body.exam_id,
+        question_id: body.question_id,
+      }),
       cache: 'no-store',
     });
+
+    const contentType = backendResponse.headers.get('content-type') ?? '';
+
+    if (contentType.includes('text/event-stream') && backendResponse.body) {
+      return new NextResponse(backendResponse.body, {
+        status: backendResponse.status,
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+        },
+      });
+    }
 
     const data = await parseBackendResponse(backendResponse);
     return NextResponse.json(data, { status: backendResponse.status });

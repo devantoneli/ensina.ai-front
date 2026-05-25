@@ -12,13 +12,10 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'admin'>('student');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const canSubmit = acceptedTerms && !isLoading;
-  const isStudentSelected = role === 'student';
-  const isAdminSelected = role === 'admin';
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,7 +58,6 @@ export default function RegisterPage() {
       email: trimmedEmail,
       phone: trimmedPhone,
       password,
-      role,
     };
 
     const registerEndpoint = '/api/auth/register';
@@ -91,7 +87,7 @@ export default function RegisterPage() {
           name: trimmedName,
           email: trimmedEmail,
           phone: trimmedPhone,
-          role,
+          role: 'student' as const,
           created_at: now,
           updated_at: now,
         };
@@ -300,73 +296,6 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   autoComplete="new-password"
                 />
-              </div>
-
-              {/* Escolha de perfil */}
-              <div className="flex flex-col gap-3">
-                <label className="text-sm font-medium text-[#2d3748]">Escolha seu perfil</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('student')}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${
-                      isStudentSelected
-                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.12)]'
-                        : 'border-[#d1d5db] bg-[#f3f4f6]'
-                    }`}
-                  >
-                    <svg
-                      width="32"
-                      height="32"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className={isStudentSelected ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
-                      }
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    >
-                      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
-                      <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    </svg>
-                    <span className={isStudentSelected ? 'text-[#2d3748]' : 'text-[#6b7280]'}>Estudante</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRole('admin')}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all ${
-                      isAdminSelected
-                        ? 'border-[#5b9fc9] bg-[rgba(91,159,201,0.12)]'
-                        : 'border-[#d1d5db] bg-[#f3f4f6]'
-                    }`}
-                  >
-                    <svg
-                      width="32"
-                      height="32"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className={isAdminSelected ? 'text-[#5b9fc9]' : 'text-[#9ca3af]'
-                      }
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    >
-                      <path
-                        d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M9.5 12l2 2 3-3"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span className={isAdminSelected ? 'text-[#2d3748]' : 'text-[#6b7280]'}>Admin</span>
-                  </button>
-                </div>
               </div>
 
               {/* Termos */}
