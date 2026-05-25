@@ -322,17 +322,6 @@ function buildSessionTitle(question: string): string {
   return accentFixed.length > 42 ? `${accentFixed.slice(0, 42).trim()}...` : accentFixed;
 }
 
-function inferContentsFromQuestion(question: string): string[] {
-  const stopWords = ['sobre', 'para', 'como', 'onde', 'qual', 'quais', 'quem', 'pode', 'ajuda', 'ajudar', 'explicar', 'entender', 'fazer', 'feito', 'estou', 'estudar', 'estudo'];
-  const normalized = question
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .split(/\s+/)
-    .filter((word) => word.length > 3 && !stopWords.includes(word));
-
-  const unique = Array.from(new Set(normalized));
-  return unique.slice(0, 6).map((word) => word.charAt(0).toUpperCase() + word.slice(1));
-}
 
 function buildAssistantMarkdown(question: string, data: FreeModeResponse | null, ok: boolean): string {
   if (!ok) {
@@ -437,43 +426,6 @@ function buildAssistantMarkdown(question: string, data: FreeModeResponse | null,
   return lines.join('\n');
 }
 
-function buildTrailMarkdown(data: FreeModeResponse | null): string {
-  if (!data?.trail) {
-    return 'Sua trilha gerada aparecerá aqui.';
-  }
-
-  if (typeof data.trail === 'string') {
-    return data.trail;
-  }
-
-  const trailItems = data.trail.trail ?? [];
-  if (trailItems.length === 0) {
-    return 'Nenhuma trilha recomendada no momento.';
-  }
-
-  return trailItems
-    .map((module, index) => {
-      const lines = [`### ${index + 1}. ${module.title ?? 'Módulo sem título'}`];
-
-      if (module.activities?.length) {
-        lines.push(...module.activities.map((activity) => `- ${activity}`));
-      }
-
-      if (module.prerequisites?.length) {
-        lines.push(`> Pré-requisitos: ${module.prerequisites.join(', ')}`);
-      }
-
-      if (module.recommended_sources?.length) {
-        lines.push('**Fontes recomendadas**');
-        module.recommended_sources.forEach((source) => {
-          lines.push(`- ${source.url ? `[${source.name ?? 'Fonte'}](${source.url})` : source.name ?? 'Fonte'}${source.reason ? ` — ${source.reason}` : ''}`);
-        });
-      }
-
-      return lines.join('\n');
-    })
-    .join('\n\n');
-}
 
 function ChatContent() {
   const searchParams = useSearchParams();
@@ -633,15 +585,6 @@ function ChatContent() {
     [sessions],
   );
 
-  const activeContents = activeSession?.latestAnalysis?.classification?.contents ?? [];
-  const fallbackContents = activeSession?.messages.length
-    ? inferContentsFromQuestion(activeSession.messages[0]?.content ?? '')
-    : [];
-  const displayedContents = activeContents.length > 0 ? activeContents.slice(0, 4) : fallbackContents;
-  const activeDiscipline = activeSession?.latestAnalysis?.classification?.discipline ?? 'Materia';
-  const contentSubtitle = displayedContents[0] ?? 'Aguardando conteudos';
-  const spotlightTitle = displayedContents[contentIndex] ?? displayedContents[0] ?? 'Seu proximo conteudo aparece aqui';
-  const dotCount = Math.max(displayedContents.length, 5);
   const hasMessages = (activeSession?.messages.length ?? 0) > 0;
   const headerTitle = hasMessages ? activeSession?.title ?? 'Nova conversa' : 'No que voce esta pensando hoje?';
   const greetingLine = userName ? `${userName}` : '';
@@ -753,7 +696,7 @@ function ChatContent() {
     try {
       const sessionMessages = sessions.find((session) => session.id === sessionId)?.messages ?? [];
       const fullHistory = [...sessionMessages, userMessage].map((message) => ({
-        role: message.role === 'assistant' ? 'assistant' : 'user',
+        role: (message.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
         content: message.content,
       }));
 
@@ -847,59 +790,7 @@ function ChatContent() {
             <p className="text-[var(--app-root-font-size)] font-medium text-[#263244]">Resultados do chat</p>
 
             <section className="mt-5">
-              <h2 className="text-[calc(var(--app-root-font-size)*1.375)] font-semibold text-[#1f2937]">Conteudos</h2>
-
-              <div className="mt-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_22px_rgba(34,67,111,0.12)]">
-                <div className="flex items-start gap-3">
-                  <span className="mt-1 h-3 w-3 rounded-full bg-[#2f90e5]" />
-                  <div>
-                    <p className="text-[calc(var(--app-root-font-size)*0.8125)] font-semibold text-[#1f2937]">{activeDiscipline}</p>
-                    <p className="text-[calc(var(--app-root-font-size)*0.6875)] text-[#6b7b8f]">{contentSubtitle}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 min-h-[108px] rounded-[22px] bg-[linear-gradient(135deg,#4A8FD9_0%,#2F90E5_100%)] px-4 py-4 text-white shadow-[0_12px_22px_rgba(47,144,229,0.28)]">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      className="text-lg leading-none opacity-80"
-                      aria-label="Anterior"
-                      onClick={() => setContentIndex((prev) => (prev > 0 ? prev - 1 : displayedContents.length - 1))}
-                    >
-                      {'<'}
-                    </button>
-                    <p className="max-w-[180px] text-center text-sm font-semibold leading-5">{spotlightTitle}</p>
-                    <button
-                      type="button"
-                      className="text-lg leading-none opacity-80"
-                      aria-label="Proximo"
-                      onClick={() => setContentIndex((prev) => (prev < displayedContents.length - 1 ? prev + 1 : 0))}
-                    >
-                      {'>'}
-                    </button>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-center gap-2">
-                    {Array.from({ length: dotCount }).map((_, index) => (
-                      <span
-                        key={`dot-${index}`}
-                        className={`h-2.5 w-2.5 rounded-full ${index === contentIndex ? 'bg-[#dff0ff]' : 'bg-[#9fc8ef]'}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <h3 className="mt-8 text-[22px] font-semibold text-[#1f2937]">Trilhas</h3>
-              <div className="mt-4 rounded-[24px] bg-white px-4 py-4 shadow-[0_10px_22px_rgba(34,67,111,0.12)]">
-                {activeSession?.latestAnalysis?.trail ? (
-                  <TutorMarkdown className="text-[14px] leading-relaxed text-[#4b5563]">{buildTrailMarkdown(activeSession.latestAnalysis)}</TutorMarkdown>
-                ) : (
-                  <p className="text-[13px] text-[#6b7b8f]">Sua trilha gerada aparecerá aqui.</p>
-                )}
-              </div>
-
-              <h3 className="mt-8 text-[22px] font-semibold text-[#1f2937]">Conversas anteriores</h3>
+              <h3 className="text-[22px] font-semibold text-[#1f2937]">Conversas anteriores</h3>
 
               <div className="mt-4 space-y-3 pb-6">
                 {sortedSessions.length === 0 ? (
