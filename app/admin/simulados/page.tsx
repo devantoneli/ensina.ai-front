@@ -138,8 +138,9 @@ export default function AdminSimulados() {
         name:         formData.titulo.trim(),
         description:  formData.descricao.trim() || undefined,
         difficulty:   NIVEL_TO_DIFFICULTY[formData.nivel] ?? 'MÉDIO',
-        creator_name: 'admin'
-    };
+        creator_name: 'admin',
+        time_setting: formData.tempoEstimado ? Number(formData.tempoEstimado) : undefined,
+      };
 
       if (editingId) {
         await simuladoService.update(editingId, payload);
@@ -353,18 +354,16 @@ export default function AdminSimulados() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="admin-form-group">
                   <label htmlFor="questoes" className="admin-label">
-                    Número de Questões *
+                    Questões vinculadas
                   </label>
                   <input
                     id="questoes"
                     name="questoes"
                     type="number"
-                    placeholder="Ex: 50"
                     value={formData.questoes}
-                    onChange={handleChange}
                     className="admin-input"
-                    min="1"
-                    required
+                    disabled
+                    title="O número de questões é gerenciado na página de Questões"
                   />
                 </div>
 
