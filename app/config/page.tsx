@@ -116,7 +116,6 @@ interface ConfigPreferences {
   notificationsEmail: boolean;
   notificationsContentUpdates: boolean;
   notificationsStudyReminders: boolean;
-  securityTwoFactor: boolean;
   appearanceAnimations: boolean;
   privacyDataCollection: boolean;
   privacyDataAnalysis: boolean;
@@ -126,7 +125,6 @@ const DEFAULT_CONFIG_PREFERENCES: ConfigPreferences = {
   notificationsEmail: true,
   notificationsContentUpdates: true,
   notificationsStudyReminders: false,
-  securityTwoFactor: false,
   appearanceAnimations: true,
   privacyDataCollection: true,
   privacyDataAnalysis: true,
@@ -241,6 +239,25 @@ export default function ConfigPage() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
+
+  // 2FA
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState<string | null>(null);
+  const [show2FASetupModal, setShow2FASetupModal] = useState(false);
+  const [show2FADisableModal, setShow2FADisableModal] = useState(false);
+  // setup: 'choose' → escolhe método | 'code' → digita código
+  const [setupStep, setSetupStep] = useState<'choose' | 'code'>('choose');
+  const [setupMethod, setSetupMethod] = useState<'email' | 'phone'>('email');
+  const [setupContact, setSetupContact] = useState('');
+  // disable: 'send' → aguarda envio | 'code' → digita código
+  const [disableStep, setDisableStep] = useState<'send' | 'code'>('send');
+  const [twoFACode, setTwoFACode] = useState('');
+  const [twoFAError, setTwoFAError] = useState('');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.replace('/login');
@@ -262,6 +279,8 @@ export default function ConfigPage() {
               city: parsed.city || '',
               avatar: parsed.avatar,
             });
+            setTwoFactorEnabled(!!parsed.two_factor_enabled);
+            setTwoFactorMethod(parsed.two_factor_method || null);
           });
         } catch {
           // ignore invalid stored user data
@@ -300,14 +319,46 @@ export default function ConfigPage() {
     setHasChanged(true);
   };
 
-  const handleSave = () => {
-    if (typeof window !== 'undefined') {
+  const handleSave = async () => {
+    if (typeof window === 'undefined') return;
+
+    const token = window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
+    if (!token) return;
+
+    setIsSaving(true);
+    setSaveError('');
+    setSaveSuccess('');
+
+    try {
+      // Strip phone formatting — send only digits to the backend
+      const rawPhone = profile.phone.replace(/\D/g, '') || undefined;
+
+      const response = await fetch('/api/users/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: profile.name || undefined, phone: rawPhone }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(parseErrorMessage(data, `Erro ${response.status} ao salvar.`));
+      }
+
+      // Sync localStorage with what the backend confirmed
       const userData = window.localStorage.getItem('user_data');
       const parsed = userData ? JSON.parse(userData) : {};
-      const updated = { ...parsed, ...profile };
-      window.localStorage.setItem('user_data', JSON.stringify(updated));
+      window.localStorage.setItem('user_data', JSON.stringify({ ...parsed, ...data }));
       window.dispatchEvent(new Event(USER_DATA_UPDATED_EVENT));
       setHasChanged(false);
+      setSaveSuccess('Perfil atualizado com sucesso!');
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : 'Erro ao salvar perfil.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -422,6 +473,96 @@ export default function ConfigPage() {
       }
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const sync2FAState = (enabled: boolean, method: string | null) => {
+    setTwoFactorEnabled(enabled);
+    setTwoFactorMethod(method);
+    if (typeof window !== 'undefined') {
+      const raw = window.localStorage.getItem('user_data');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          window.localStorage.setItem('user_data', JSON.stringify({ ...parsed, two_factor_enabled: enabled, two_factor_method: method }));
+        } catch { /* ignore */ }
+      }
+    }
+  };
+
+  const reset2FAModals = () => {
+    setTwoFACode('');
+    setTwoFAError('');
+    setSetupStep('choose');
+    setDisableStep('send');
+    setSetupContact('');
+  };
+
+  const handle2FAToggle = () => {
+    reset2FAModals();
+    if (twoFactorEnabled) {
+      setShow2FADisableModal(true);
+    } else {
+      setShow2FASetupModal(true);
+    }
+  };
+
+  const handleSendSetupCode = async () => {
+    setTwoFALoading(true);
+    setTwoFAError('');
+    try {
+      const data = await authService.setup2FA(setupMethod);
+      setSetupContact(data.contact);
+      setSetupStep('code');
+    } catch (error: unknown) {
+      setTwoFAError(error instanceof Error ? error.message : 'Erro ao enviar código.');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    const code = twoFACode.replace(/\s/g, '');
+    if (code.length !== 6) { setTwoFAError('O código deve ter 6 dígitos.'); return; }
+    setTwoFALoading(true);
+    try {
+      await authService.verify2FA(code);
+      sync2FAState(true, setupMethod);
+      setShow2FASetupModal(false);
+      reset2FAModals();
+    } catch (error: unknown) {
+      setTwoFAError(error instanceof Error ? error.message : 'Código inválido.');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handleSendDisableCode = async () => {
+    setTwoFALoading(true);
+    setTwoFAError('');
+    try {
+      await authService.sendDisable2FACode();
+      setDisableStep('code');
+    } catch (error: unknown) {
+      setTwoFAError(error instanceof Error ? error.message : 'Erro ao enviar código.');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    const code = twoFACode.replace(/\s/g, '');
+    if (code.length !== 6) { setTwoFAError('O código deve ter 6 dígitos.'); return; }
+    setTwoFALoading(true);
+    try {
+      await authService.disable2FA(code);
+      sync2FAState(false, null);
+      setShow2FADisableModal(false);
+      reset2FAModals();
+    } catch (error: unknown) {
+      setTwoFAError(error instanceof Error ? error.message : 'Código inválido.');
+    } finally {
+      setTwoFALoading(false);
     }
   };
 
@@ -569,11 +710,13 @@ export default function ConfigPage() {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={!hasChanged}
+                  disabled={!hasChanged || isSaving}
                   className="config-save-button"
                 >
-                  Salvar alterações
+                  {isSaving ? 'Salvando...' : 'Salvar alterações'}
                 </button>
+                {saveError && <p className="config-modal-error" style={{ marginTop: 12 }}>{saveError}</p>}
+                {saveSuccess && <p className="config-modal-success" style={{ marginTop: 12 }}>{saveSuccess}</p>}
               </div>
             )}
 
@@ -637,13 +780,22 @@ export default function ConfigPage() {
                 <div className="config-option">
                   <div className="config-option-header">
                     <h3>Autenticação de dois fatores</h3>
-                    <input
-                      type="checkbox"
-                      checked={preferences.securityTwoFactor}
-                      onChange={() => handlePreferenceToggle('securityTwoFactor')}
-                    />
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={twoFactorEnabled}
+                      onClick={handle2FAToggle}
+                      disabled={twoFALoading}
+                      className={`config-2fa-toggle${twoFactorEnabled ? ' config-2fa-toggle--on' : ''}`}
+                    >
+                      <span className="config-2fa-toggle-thumb" />
+                    </button>
                   </div>
-                  <p>Adicione uma camada extra de segurança à sua conta</p>
+                  <p>
+                    {twoFactorEnabled
+                      ? 'Ativo — seu login requer o código do aplicativo autenticador.'
+                      : 'Adicione uma camada extra de segurança à sua conta.'}
+                  </p>
                 </div>
 
                 <div className="config-option">
@@ -787,6 +939,161 @@ export default function ConfigPage() {
           </section>
         </div>
       </main>
+
+      {/* Modal de setup 2FA */}
+      {show2FASetupModal && (
+        <div className="config-modal-overlay" onClick={() => { setShow2FASetupModal(false); reset2FAModals(); }}>
+          <div className="config-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="config-modal-header">
+              <h2>Ativar verificação em duas etapas</h2>
+              <button type="button" className="config-modal-close" onClick={() => { setShow2FASetupModal(false); reset2FAModals(); }} aria-label="Fechar">✕</button>
+            </div>
+            <div className="config-modal-body">
+              {setupStep === 'choose' && (
+                <>
+                  <p className="config-2fa-description">
+                    Escolha como deseja receber o código de verificação ao fazer login.
+                  </p>
+                  {twoFAError && <p className="config-modal-error">{twoFAError}</p>}
+                  <div className="config-2fa-method-options">
+                    <label className={`config-2fa-method-option${setupMethod === 'email' ? ' config-2fa-method-option--selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="2faMethod"
+                        value="email"
+                        checked={setupMethod === 'email'}
+                        onChange={() => setSetupMethod('email')}
+                      />
+                      <span className="config-2fa-method-icon">✉️</span>
+                      <div>
+                        <strong>E-mail</strong>
+                        <p>Receba o código no e-mail da sua conta.</p>
+                      </div>
+                    </label>
+                    <label className={`config-2fa-method-option${setupMethod === 'phone' ? ' config-2fa-method-option--selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="2faMethod"
+                        value="phone"
+                        checked={setupMethod === 'phone'}
+                        onChange={() => setSetupMethod('phone')}
+                      />
+                      <span className="config-2fa-method-icon">📱</span>
+                      <div>
+                        <strong>SMS</strong>
+                        <p>Receba o código por mensagem de texto.</p>
+                      </div>
+                    </label>
+                  </div>
+                </>
+              )}
+
+              {setupStep === 'code' && (
+                <>
+                  <p className="config-2fa-description">
+                    Enviamos um código de 6 dígitos para <strong>{setupContact}</strong>. Insira-o abaixo para confirmar.
+                  </p>
+                  {twoFAError && <p className="config-modal-error">{twoFAError}</p>}
+                  <div className="config-form-group">
+                    <label htmlFor="twoFACodeSetup">Código de verificação</label>
+                    <input
+                      id="twoFACodeSetup"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={twoFACode}
+                      onChange={(e) => { setTwoFACode(e.target.value.replace(/\D/g, '')); setTwoFAError(''); }}
+                      placeholder="000000"
+                      autoFocus
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  <button type="button" className="config-2fa-resend" onClick={handleSendSetupCode} disabled={twoFALoading}>
+                    Reenviar código
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="config-modal-footer">
+              <button type="button" className="config-modal-cancel" onClick={() => { setShow2FASetupModal(false); reset2FAModals(); }}>
+                Cancelar
+              </button>
+              {setupStep === 'choose' ? (
+                <button type="button" className="config-save-button" onClick={handleSendSetupCode} disabled={twoFALoading}>
+                  {twoFALoading ? 'Enviando...' : 'Enviar código'}
+                </button>
+              ) : (
+                <button type="button" className="config-save-button" onClick={handleVerify2FA} disabled={twoFALoading || twoFACode.length !== 6}>
+                  {twoFALoading ? 'Verificando...' : 'Ativar 2FA'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de desativação 2FA */}
+      {show2FADisableModal && (
+        <div className="config-modal-overlay" onClick={() => { setShow2FADisableModal(false); reset2FAModals(); }}>
+          <div className="config-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="config-modal-header">
+              <h2>Desativar verificação em duas etapas</h2>
+              <button type="button" className="config-modal-close" onClick={() => { setShow2FADisableModal(false); reset2FAModals(); }} aria-label="Fechar">✕</button>
+            </div>
+            <div className="config-modal-body">
+              {disableStep === 'send' && (
+                <>
+                  <p className="config-2fa-description">
+                    Enviaremos um código de verificação para o {twoFactorMethod === 'phone' ? 'telefone' : 'e-mail'} cadastrado na sua conta.
+                  </p>
+                  {twoFAError && <p className="config-modal-error">{twoFAError}</p>}
+                </>
+              )}
+              {disableStep === 'code' && (
+                <>
+                  <p className="config-2fa-description">
+                    Digite o código enviado para confirmar a desativação.
+                  </p>
+                  {twoFAError && <p className="config-modal-error">{twoFAError}</p>}
+                  <div className="config-form-group">
+                    <label htmlFor="twoFACodeDisable">Código de verificação</label>
+                    <input
+                      id="twoFACodeDisable"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={twoFACode}
+                      onChange={(e) => { setTwoFACode(e.target.value.replace(/\D/g, '')); setTwoFAError(''); }}
+                      placeholder="000000"
+                      autoFocus
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  <button type="button" className="config-2fa-resend" onClick={handleSendDisableCode} disabled={twoFALoading}>
+                    Reenviar código
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="config-modal-footer">
+              <button type="button" className="config-modal-cancel" onClick={() => { setShow2FADisableModal(false); reset2FAModals(); }}>
+                Cancelar
+              </button>
+              {disableStep === 'send' ? (
+                <button type="button" className="config-save-button config-save-button--danger" onClick={handleSendDisableCode} disabled={twoFALoading}>
+                  {twoFALoading ? 'Enviando...' : 'Enviar código'}
+                </button>
+              ) : (
+                <button type="button" className="config-save-button config-save-button--danger" onClick={handleDisable2FA} disabled={twoFALoading || twoFACode.length !== 6}>
+                  {twoFALoading ? 'Desativando...' : 'Desativar 2FA'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPasswordModal && (
         <div className="config-modal-overlay" onClick={handleClosePasswordModal}>

@@ -10,6 +10,7 @@ export interface User {
   email: string;
   phone?: string;
   role: UserRole;
+  two_factor_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
 }

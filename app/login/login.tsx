@@ -32,6 +32,11 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Fluxo de 2FA
+  const [step, setStep] = useState<'credentials' | '2fa'>('credentials');
+  const [totpCode, setTotpCode] = useState('');
+  const [tempToken, setTempToken] = useState('');
+
   useEffect(() => {
     const emailFromQuery = searchParams.get('email');
     const emailFromStorage =
@@ -47,6 +52,21 @@ export default function LoginPage() {
       setSuccess('Conta criada com sucesso. Faça login para continuar.');
     }
   }, [searchParams]);
+
+  const finalizeLogin = async (token: string) => {
+    window.localStorage.setItem('access_token', token);
+    window.localStorage.setItem('auth_token', token);
+
+    let redirectPath = '/chat';
+    try {
+      const { authService } = await import('@/services/authService');
+      const userData = await authService.getMe();
+      if (userData?.role === 'admin') redirectPath = '/admin';
+    } catch (err) {
+      console.error('Falha ao buscar dados do usuário após login', err);
+    }
+    router.push(redirectPath);
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -68,41 +88,53 @@ export default function LoginPage() {
       });
 
       let data: unknown = null;
-      try {
-        data = await response.json();
-      } catch {
-        data = null;
-      }
+      try { data = await response.json(); } catch { data = null; }
 
       if (!response.ok) {
         throw new Error(extractApiError(data, `Erro ${response.status} ao entrar.`));
       }
 
-      const parsed = (data ?? {}) as { access_token?: string; token?: string; user_data?: unknown };
-      const token = parsed.access_token || parsed.token;
-      
-      let redirectPath = '/chat';
+      const parsed = (data ?? {}) as {
+        access_token?: string;
+        token?: string;
+        requires_2fa?: boolean;
+        temp_token?: string;
+      };
 
-      if (typeof window !== 'undefined' && token) {
-        window.localStorage.setItem('access_token', token);
-        window.localStorage.setItem('auth_token', token);
-        
-        try {
-          // Import dynamic to avoid Next.js SSR issues if needed, or use fetch
-          const { authService } = await import('@/services/authService');
-          const userData = await authService.getMe();
-          
-          if (userData && userData.role === 'admin') {
-            redirectPath = '/admin';
-          }
-        } catch (err) {
-          console.error("Falha ao buscar dados do usuário após login", err);
-        }
+      if (parsed.requires_2fa && parsed.temp_token) {
+        setTempToken(parsed.temp_token);
+        setStep('2fa');
+        setIsLoading(false);
+        return;
       }
 
-      router.push(redirectPath);
+      const token = parsed.access_token || parsed.token;
+      if (token) await finalizeLogin(token);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Falha ao fazer login.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handle2FASubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+
+    const code = totpCode.replace(/\s/g, '');
+    if (code.length !== 6) {
+      setError('O código deve ter 6 dígitos.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { authService } = await import('@/services/authService');
+      const { access_token } = await authService.login2FA(tempToken, code);
+      await finalizeLogin(access_token);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Código inválido.');
+      setTotpCode('');
     } finally {
       setIsLoading(false);
     }
@@ -210,84 +242,130 @@ export default function LoginPage() {
               <p className="text-[#6b7280]">Entre para continuar sua jornada</p>
             </div>
 
-            {/* Formulário */}
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              {/* Mensagem de erro */}
-              {error && (
-                <div className="bg-[#fef2f2] border border-[#ffc9c9] rounded-2xl px-4 py-3">
-                  <p className="text-[#c10007] text-sm">{error}</p>
-                </div>
-              )}
+            {/* Formulário — passo 1: credenciais */}
+            {step === 'credentials' && (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                {error && (
+                  <div className="bg-[#fef2f2] border border-[#ffc9c9] rounded-2xl px-4 py-3">
+                    <p className="text-[#c10007] text-sm">{error}</p>
+                  </div>
+                )}
+                {success && (
+                  <div className="bg-[#ecfdf3] border border-[#9ee6b8] rounded-2xl px-4 py-3">
+                    <p className="text-[#0f7a35] text-sm">{success}</p>
+                  </div>
+                )}
 
-              {/* Mensagem de sucesso */}
-              {success && (
-                <div className="bg-[#ecfdf3] border border-[#9ee6b8] rounded-2xl px-4 py-3">
-                  <p className="text-[#0f7a35] text-sm">{success}</p>
+                <div className="space-y-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-[#2d3748]">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="login-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                    disabled={isLoading}
+                  />
                 </div>
-              )}
 
-              {/* Campo Email */}
-              <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium text-[#2d3748]">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  className="login-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="password" className="block text-sm font-medium text-[#2d3748]">Senha</label>
+                    <button type="button" className="text-sm font-medium text-[#5b9fc9] hover:text-[#4a8fb0] transition-colors">
+                      Esqueceu a senha?
+                    </button>
+                  </div>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="login-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <button
+                  type="submit"
                   disabled={isLoading}
-                />
-              </div>
+                  className="w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Verificando...' : 'Entrar na plataforma'}
+                </button>
+              </form>
+            )}
 
-              {/* Campo Senha */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="block text-sm font-medium text-[#2d3748]">
-                    Senha
+            {/* Formulário — passo 2: código 2FA */}
+            {step === '2fa' && (
+              <form onSubmit={handle2FASubmit} className="flex flex-col gap-5">
+                <div className="text-center space-y-2 py-2">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-[rgba(91,159,201,0.12)] flex items-center justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2L3 6.5V11.5C3 19 12 22 12 22C12 22 21 19 21 11.5V6.5L12 2Z" stroke="#5b9fc9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-[#6b7280]">
+                    Enviamos um código de 6 dígitos para o seu e-mail ou telefone cadastrado. Insira-o abaixo para continuar.
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="bg-[#fef2f2] border border-[#ffc9c9] rounded-2xl px-4 py-3">
+                    <p className="text-[#c10007] text-sm">{error}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label htmlFor="totpCode" className="block text-sm font-medium text-[#2d3748]">
+                    Código de verificação
                   </label>
-                  <button
-                    type="button"
-                    className="text-sm font-medium text-[#5b9fc9] hover:text-[#4a8fb0] transition-colors"
-                  >
-                    Esqueceu a senha?
-                  </button>
+                  <input
+                    id="totpCode"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    autoFocus
+                    className="login-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-center tracking-[0.5em] font-mono text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
+                    disabled={isLoading}
+                  />
                 </div>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="login-input w-full px-3 py-3 bg-[rgba(245,229,220,0.3)] border border-[rgba(91,159,201,0.2)] rounded-2xl text-sm text-[#2d3748] placeholder:text-[#6b7280] focus:outline-none focus:border-[#5b9fc9] focus:ring-1 focus:ring-[#5b9fc9]"
-                  disabled={isLoading}
-                />
+
+                <button
+                  type="submit"
+                  disabled={isLoading || totpCode.length !== 6}
+                  className="w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Verificando...' : 'Confirmar'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setStep('credentials'); setError(''); setTotpCode(''); }}
+                  className="text-sm text-center text-[#5b9fc9] hover:text-[#4a8fb0] transition-colors"
+                >
+                  ← Voltar ao login
+                </button>
+              </form>
+            )}
+
+            {/* Divisor e Registro — apenas no passo de credenciais */}
+            {step === 'credentials' && (
+              <div className="pt-6 border-t border-[rgba(91,159,201,0.2)] space-y-3">
+                <p className="text-center text-sm text-[#6b7280]">Ainda não tem uma conta?</p>
+                <Link
+                  href="/register"
+                  className="login-link block w-full py-3 bg-[#f5e5dc] border border-[#5b9fc9] rounded-2xl text-[#5b9fc9] text-sm font-medium text-center hover:bg-[#ead9cd] transition-colors"
+                >
+                  Criar conta gratuita
+                </Link>
               </div>
-
-              {/* Botão Entrar */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 rounded-2xl text-white text-sm font-medium flex items-center justify-center gap-2 bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Entrando...' : 'Entrar na plataforma'}
-              </button>
-            </form>
-
-            {/* Divisor e Registro */}
-            <div className="pt-6 border-t border-[rgba(91,159,201,0.2)] space-y-3">
-              <p className="text-center text-sm text-[#6b7280]">
-                Ainda não tem uma conta?
-              </p>
-              <Link
-                href="/register"
-                className="login-link block w-full py-3 bg-[#f5e5dc] border border-[#5b9fc9] rounded-2xl text-[#5b9fc9] text-sm font-medium text-center hover:bg-[#ead9cd] transition-colors"
-              >
-                Criar conta gratuita
-              </Link>
-            </div>
+            )}
           </div>
 
           {/* Texto LGPD */}
