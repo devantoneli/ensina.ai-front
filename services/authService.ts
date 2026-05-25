@@ -242,6 +242,79 @@ export const authService = {
   },
 
   /**
+   * Inicia setup de 2FA: envia código para o contato escolhido (email ou phone)
+   */
+  async setup2FA(method: 'email' | 'phone'): Promise<{ method: string; contact: string; message: string }> {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch('/api/users/2fa/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ method }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.detail || data?.message || 'Erro ao iniciar 2FA.');
+    return data as { method: string; contact: string; message: string };
+  },
+
+  /**
+   * Confirma o código recebido e ativa o 2FA
+   */
+  async verify2FA(code: string): Promise<void> {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch('/api/users/2fa/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ code }),
+    });
+    if (response.status === 204) return;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.detail || data?.message || 'Código inválido.');
+  },
+
+  /**
+   * Envia um novo código para o contato 2FA cadastrado (passo antes de desativar)
+   */
+  async sendDisable2FACode(): Promise<void> {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch('/api/users/2fa/send-code', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 204) return;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.detail || data?.message || 'Erro ao enviar código.');
+  },
+
+  /**
+   * Desativa o 2FA verificando o código recebido
+   */
+  async disable2FA(code: string): Promise<void> {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch('/api/users/2fa/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ code }),
+    });
+    if (response.status === 204) return;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.detail || data?.message || 'Código inválido.');
+  },
+
+  /**
+   * Conclui login quando 2FA está ativo (troca temp_token + código pelo JWT real)
+   */
+  async login2FA(tempToken: string, code: string): Promise<{ access_token: string }> {
+    const response = await fetch('/api/auth/2fa-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ temp_token: tempToken, code }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.detail || data?.message || 'Código inválido.');
+    return data as { access_token: string };
+  },
+
+  /**
    * Altera a senha do usuário autenticado
    */
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {

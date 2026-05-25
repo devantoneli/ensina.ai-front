@@ -18,6 +18,7 @@ type SimuladoApiItem = Partial<{
   tempoEstimado: number | string;
   estimated_time: number | string;
   duration_minutes: number | string;
+  time_setting: number | string;
   categoria: string;
   category: string;
   subject: string;
@@ -63,7 +64,7 @@ function normalizeSimulado(item: SimuladoApiItem): Simulado {
   const descricao = item.descricao ?? item.description ?? '';
   const nivel = normalizeNivel(item.nivel ?? item.level ?? item.difficulty);
   const questoes = toNumber(item.questoes ?? item.questions ?? item.question_count);
-  const tempoEstimado = toNumber(item.tempoEstimado ?? item.estimated_time ?? item.duration_minutes);
+  const tempoEstimado = toNumber(item.tempoEstimado ?? item.estimated_time ?? item.duration_minutes ?? item.time_setting);
   const categoria = item.categoria ?? item.category ?? item.subject ?? 'Geral';
 
   return {
@@ -123,12 +124,12 @@ export const simuladoService = {
     return extracted ? normalizeSimulado(extracted) : null;
   },
 
-  async create(payload: { name: string; creator_name?: string; difficulty?: string; description?: string }): Promise<unknown> {
+  async create(payload: { name: string; creator_name?: string; difficulty?: string; description?: string; time_setting?: number }): Promise<unknown> {
     const response = await api.post('/exams', payload);
     return response.data;
   },
 
-  async update(examId: string | number, payload: { name?: string; difficulty?: string; description?: string }): Promise<unknown> {
+  async update(examId: string | number, payload: { name?: string; difficulty?: string; description?: string; time_setting?: number }): Promise<unknown> {
     const response = await api.put(`/exams/${examId}`, payload);
     return response.data;
   },
@@ -138,7 +139,12 @@ export const simuladoService = {
   },
 
   async getQuestions(examId: string | number): Promise<any[]> {
-    const response = await api.get<any[]>(`/exams/${examId}/questions`);
-    return response.data;
+    const response = await api.get<any>(`/exams/${examId}/questions`);
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.data)) return data.data;
+    if (data && Array.isArray(data.questions)) return data.questions;
+    if (data && Array.isArray(data.items)) return data.items;
+    return [];
   },
 };

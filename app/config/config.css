@@ -437,6 +437,143 @@
   color: #1e7bc4;
 }
 
+/* Toggle de 2FA */
+.config-2fa-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: #cbd5e1;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.25s ease;
+  padding: 0;
+}
+
+.config-2fa-toggle--on {
+  background: linear-gradient(135deg, #4a8fd9 0%, #2f90e5 100%);
+}
+
+.config-2fa-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-2fa-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: transform 0.25s ease;
+  display: block;
+}
+
+.config-2fa-toggle--on .config-2fa-toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* Modal de 2FA */
+.config-modal--wide {
+  max-width: 520px;
+}
+
+.config-2fa-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #5f85ad;
+  line-height: 1.55;
+}
+
+.config-2fa-method-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-2fa-method-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 2px solid rgba(71, 145, 223, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.config-2fa-method-option:hover {
+  border-color: rgba(47, 144, 229, 0.45);
+  background: rgba(71, 145, 223, 0.05);
+}
+
+.config-2fa-method-option--selected {
+  border-color: #2f90e5;
+  background: rgba(47, 144, 229, 0.07);
+  box-shadow: 0 0 0 3px rgba(47, 144, 229, 0.1);
+}
+
+.config-2fa-method-option input[type='radio'] {
+  accent-color: #2f90e5;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.config-2fa-method-option-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.config-2fa-method-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config-2fa-method-option-label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #2f79cb;
+}
+
+.config-2fa-method-option-hint {
+  font-size: 0.75rem;
+  color: #5f85ad;
+}
+
+.config-2fa-resend {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8125rem;
+  color: #2f90e5;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+
+.config-2fa-resend:hover:not(:disabled) {
+  color: #1e7bc4;
+}
+
+.config-2fa-resend:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.config-save-button--danger {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+}
+
 /* Modal de alterar senha */
 .config-modal-overlay {
   position: fixed;
