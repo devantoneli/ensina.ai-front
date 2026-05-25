@@ -1,23 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { useProgress } from '@/hooks/useProgress';
 import { simuladoService } from '@/services/simuladoService';
-import api from '@/services/api';
+import { adminService } from '@/services/adminService';
 import { getSimuladoKeysStorageKey, getSimuladoResultStorageKey } from '@/utils/simuladoStorage';
 import './desempenho.css';
 
 // ── Ícones SVG inline ──────────────────────────────────────
-
-function IconBack() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M15 19l-7-7 7-7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function IconTrophy() {
   return (
@@ -73,52 +64,24 @@ function buildConicGradient(slices: { value: number; color: string }[]): string 
   return `conic-gradient(${parts.join(', ')})`;
 }
 
+function formatPtDate(value?: string | null): string {
+  if (!value) return 'Sem atividades ainda';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Data indisponível';
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 // ── Componente principal ──────────────────────────────────
 
 export default function DesempenhoPage() {
-  const router = useRouter();
   const { dashboard: backendDashboard, isLoading: isBackendLoading } = useProgress();
   const [combinedDashboard, setCombinedDashboard] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedTopic, setSelectedTopic] = useState('Geral');
-  const [allTopics, setAllTopics] = useState<string[]>([]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [disciplineGroups, setDisciplineGroups] = useState<{ id: number; name: string; contents: { id: number; name: string }[] }[]>([]);
-
-  useEffect(() => {
-    if (!isDropdownOpen) return;
-    const handleClose = () => setIsDropdownOpen(false);
-    window.addEventListener('click', handleClose);
-    return () => window.removeEventListener('click', handleClose);
-  }, [isDropdownOpen]);
-
-  // Busca todas as disciplinas e seus conteúdos do banco de dados
-  useEffect(() => {
-    const fetchDisciplineGroups = async () => {
-      try {
-        const disciplinesRes = await api.get<{ id: number; name: string }[]>('/disciplines/');
-        const disciplines = disciplinesRes.data;
-
-        const groups = await Promise.all(
-          disciplines.map(async (discipline) => {
-            const contentsRes = await api.get<{ id: number; name: string; is_active: boolean }[]>(
-              `/contents/discipline/${discipline.id}`
-            );
-            const activeContents = contentsRes.data
-              .filter((c) => c.is_active)
-              .map((c) => ({ id: c.id, name: c.name }));
-            return { id: discipline.id, name: discipline.name, contents: activeContents };
-          })
-        );
-
-        // Só exibe disciplinas que tenham conteúdos cadastrados
-        setDisciplineGroups(groups.filter((g) => g.contents.length > 0));
-      } catch (err) {
-        console.error('Erro ao buscar disciplinas:', err);
-      }
-    };
-    void fetchDisciplineGroups();
-  }, []);
+  const [simuladoMateriaTotals, setSimuladoMateriaTotals] = useState<Array<{ label: string; value: number }>>([]);
 
   useEffect(() => {
     if (isBackendLoading) return;
@@ -128,6 +91,20 @@ export default function DesempenhoPage() {
         const examsList = await simuladoService.list();
         const rawKeys = window.localStorage.getItem(getSimuladoKeysStorageKey());
         const completedKeys = rawKeys ? (JSON.parse(rawKeys) as string[]) : [];
+
+        let contentToDiscipline = new Map<number, string>();
+        try {
+          const [contents, disciplines] = await Promise.all([
+            adminService.getContents(),
+            adminService.getDisciplines(),
+          ]);
+          const disciplineMap = new Map(disciplines.map((d) => [d.id, d.name]));
+          contentToDiscipline = new Map(
+            contents.map((c) => [c.id, disciplineMap.get(c.discipline_id) ?? 'Geral'])
+          );
+        } catch (error) {
+          console.warn('Nao foi possivel carregar conteudos/disciplinas:', error);
+        }
 
         let simulatedCorrect = 0;
         let simulatedWrong = 0;
@@ -156,6 +133,56 @@ export default function DesempenhoPage() {
           simulatedTopicStats[topic].wrong += (result.total - result.correct);
           simulatedTopicStats[topic].total += result.total;
         });
+
+        // Distribuicao por materia baseada nas questoes do simulado
+        const completedExams = new Map<string, { id: string; materia?: string; questoes?: number }>();
+        completedKeys.forEach((key) => {
+          const [titlePart] = key.split('::');
+          const matchedExam = examsList.find(
+            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === titlePart.trim()
+          );
+          if (matchedExam) {
+            completedExams.set(matchedExam.id, matchedExam);
+          }
+        });
+
+        const examsWithQuestions = await Promise.all(
+          Array.from(completedExams.values()).map(async (exam) => {
+            const questions = await simuladoService.getQuestions(exam.id);
+            return { exam, questions };
+          })
+        );
+
+        const materiaTotalsMap = new Map<string, number>();
+        examsWithQuestions.forEach(({ exam, questions }) => {
+          const fallbackMateria = exam.materia ?? 'Geral';
+
+          if (!questions || questions.length === 0) {
+            const fallbackTotal = Number(exam.questoes ?? 0);
+            if (fallbackTotal > 0) {
+              materiaTotalsMap.set(
+                fallbackMateria,
+                (materiaTotalsMap.get(fallbackMateria) ?? 0) + fallbackTotal
+              );
+            }
+            return;
+          }
+
+          questions.forEach((question: any) => {
+            const rawContentId = question?.content_id ?? question?.contentId ?? question?.content?.id;
+            const contentId = typeof rawContentId === 'number' ? rawContentId : Number(rawContentId);
+            const disciplina = Number.isFinite(contentId)
+              ? contentToDiscipline.get(contentId)
+              : undefined;
+            const materia = disciplina ?? fallbackMateria;
+            materiaTotalsMap.set(materia, (materiaTotalsMap.get(materia) ?? 0) + 1);
+          });
+        });
+
+        const materiaTotals = Array.from(materiaTotalsMap.entries())
+          .map(([label, value]) => ({ label, value }))
+          .filter((item) => item.value > 0);
+        setSimuladoMateriaTotals(materiaTotals);
 
         const db = backendDashboard
           ? JSON.parse(JSON.stringify(backendDashboard))
@@ -219,30 +246,11 @@ export default function DesempenhoPage() {
         weak.sort((a, b) => a.accuracy_pct - b.accuracy_pct);
         db.weak_topics = weak;
 
-        const availableTopics = new Set<string>([
-          'Gramática', 'Pontuação', 'Ortografia', 'Acentuação',
-          'Interpretação', 'Literatura', 'Semântica', 'Matemática',
-          'Física', 'Química', 'Biologia', 'História', 'Geografia',
-          'Filosofia', 'Sociologia', 'Inglês'
-        ]);
-        examsList.forEach(e => availableTopics.add(e.materia));
-        mergedTopicsList.forEach(t => availableTopics.add(t.topic));
-        setAllTopics(Array.from(availableTopics).sort());
-
         setCombinedDashboard(db);
       } catch (err) {
         console.error('Erro ao mesclar dados de simulados no desempenho:', err);
         setCombinedDashboard(backendDashboard);
-        const fallbackTopics = new Set<string>([
-          'Gramática', 'Pontuação', 'Ortografia', 'Acentuação',
-          'Interpretação', 'Literatura', 'Semântica', 'Matemática',
-          'Física', 'Química', 'Biologia', 'História', 'Geografia',
-          'Filosofia', 'Sociologia', 'Inglês'
-        ]);
-        if (backendDashboard?.accuracy?.by_topic) {
-          backendDashboard.accuracy.by_topic.forEach((t: any) => fallbackTopics.add(t.topic));
-        }
-        setAllTopics(Array.from(fallbackTopics).sort());
+        setSimuladoMateriaTotals([]);
       } finally {
         setIsLoading(false);
       }
@@ -259,145 +267,55 @@ export default function DesempenhoPage() {
   const bestTopic    = byTopic.length
     ? byTopic.reduce((a, b: any) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
     : null;
-
-  const selectedTopicObj = useMemo(() => {
-    if (selectedTopic === 'Geral') return null;
-    return byTopic.find((t: any) => t.topic === selectedTopic) || { topic: selectedTopic, correct: 0, wrong: 0, total: 0, accuracy_pct: 0 };
-  }, [selectedTopic, byTopic]);
+  const lastStudiedLabel = formatPtDate(studyTime?.last_studied_at ?? null);
 
   // Slices do gráfico de pizza
-  // No modo Geral: agrupa byTopic por disciplina do banco
-  // Em filtro específico: mostra o slice daquela matéria
   const pieSlices = useMemo(() => {
-    if (selectedTopic !== 'Geral') {
-      // Slice único para a matéria selecionada
-      const found = byTopic.find((t: any) => t.topic === selectedTopic);
-      if (!found) return [];
-      return [{ label: found.topic, value: found.total, color: PIE_COLORS[0] }];
-    }
+    return simuladoMateriaTotals.map((item, i: number) => ({
+      label: item.label,
+      value: item.value,
+      color: PIE_COLORS[i % PIE_COLORS.length],
+    }));
+  }, [simuladoMateriaTotals]);
 
-    if (disciplineGroups.length === 0) {
-      // Fallback: usa byTopic diretamente
-      return byTopic.map((t: any, i: number) => ({
-        label: t.topic,
-        value: t.total,
-        color: PIE_COLORS[i % PIE_COLORS.length],
-      }));
-    }
-
-    // Agrega byTopic por disciplina
-    const disciplineSlices: { label: string; value: number; color: string }[] = [];
-    disciplineGroups.forEach((discipline, i) => {
-      const contentNames = new Set(discipline.contents.map((c) => c.name));
-      const total = byTopic
-        .filter((t: any) => contentNames.has(t.topic))
-        .reduce((sum: number, t: any) => sum + t.total, 0);
-      if (total > 0) {
-        disciplineSlices.push({
-          label: discipline.name,
-          value: total,
-          color: PIE_COLORS[i % PIE_COLORS.length],
-        });
-      }
-    });
-
-    // Questões sem disciplina mapeada (ex: "Geral", "Simulados")
-    const mappedTopics = new Set(
-      disciplineGroups.flatMap((d) => d.contents.map((c) => c.name))
-    );
-    const unmappedTotal = byTopic
-      .filter((t: any) => !mappedTopics.has(t.topic))
-      .reduce((sum: number, t: any) => sum + t.total, 0);
-    if (unmappedTotal > 0) {
-      disciplineSlices.push({
-        label: 'Outros',
-        value: unmappedTotal,
-        color: PIE_COLORS[disciplineSlices.length % PIE_COLORS.length],
-      });
-    }
-
-    return disciplineSlices.length > 0
-      ? disciplineSlices
-      : byTopic.map((t: any, i: number) => ({
-          label: t.topic,
-          value: t.total,
-          color: PIE_COLORS[i % PIE_COLORS.length],
-        }));
-  }, [byTopic, disciplineGroups, selectedTopic]);
-
-  // Recomendações dinâmicas — respeita o filtro selecionado
+  // Recomendações dinâmicas
   const recs: { type: 'red' | 'yellow' | 'green'; icon: string; title: string; text: string }[] = [];
 
-  if (selectedTopicObj) {
-    // ── Modo filtro: recomendações baseadas na matéria selecionada ──
-    const pct = selectedTopicObj.accuracy_pct;
-    if (selectedTopicObj.total === 0) {
-      recs.push({
-        type: 'yellow',
-        icon: '💬',
-        title: `Sem dados em ${selectedTopicObj.topic}`,
-        text: 'Ainda não há questões respondidas nesta matéria. Interaja no chat para gerar dados!',
-      });
-    } else if (pct < 50) {
-      recs.push({
-        type: 'red',
-        icon: '🎯',
-        title: `Foco em ${selectedTopicObj.topic}`,
-        text: `Taxa de acerto de ${pct}%. Recomendamos praticar muito mais questões sobre este tópico.`,
-      });
-    } else if (pct < 70) {
-      recs.push({
-        type: 'yellow',
-        icon: '⏰',
-        title: `Melhore em ${selectedTopicObj.topic}`,
-        text: `${pct}% de acerto. Você está progredindo! Revise os conceitos para superar 70%.`,
-      });
-    } else {
-      recs.push({
-        type: 'green',
-        icon: '🏆',
-        title: `Ótimo desempenho em ${selectedTopicObj.topic}!`,
-        text: `${pct}% de acerto. Continue assim e explore tópicos avançados desta matéria.`,
-      });
-    }
-  } else {
-    // ── Modo Geral: recomendações globais ──
-    if (weakTopics.length > 0) {
-      recs.push({
-        type: 'red',
-        icon: '🎯',
-        title: `Foco em ${weakTopics[0].topic}`,
-        text: `Taxa de acerto de ${weakTopics[0].accuracy_pct}%. Recomendamos praticar mais questões sobre este tópico.`,
-      });
-    }
+  if (weakTopics.length > 0) {
+    recs.push({
+      type: 'red',
+      icon: '🎯',
+      title: `Foco em ${weakTopics[0].topic}`,
+      text: `Taxa de acerto de ${weakTopics[0].accuracy_pct}%. Recomendamos praticar mais questões sobre este tópico.`,
+    });
+  }
 
-    if (weakTopics.length > 1) {
-      recs.push({
-        type: 'yellow',
-        icon: '⏰',
-        title: `Aumente o tempo em ${weakTopics[1].topic}`,
-        text: `Apenas ${weakTopics[1].accuracy_pct}% de acerto. Revise os conceitos fundamentais.`,
-      });
-    }
+  if (weakTopics.length > 1) {
+    recs.push({
+      type: 'yellow',
+      icon: '⏰',
+      title: `Aumente o tempo em ${weakTopics[1].topic}`,
+      text: `Apenas ${weakTopics[1].accuracy_pct}% de acerto. Revise os conceitos fundamentais.`,
+    });
+  }
 
-    if (bestTopic && bestTopic.accuracy_pct >= 80) {
-      recs.push({
-        type: 'green',
-        icon: '🏆',
-        title: `Excelente em ${bestTopic.topic}!`,
-        text: `${bestTopic.accuracy_pct}% de acerto. Continue assim e explore tópicos avançados.`,
-      });
-    }
+  if (bestTopic && bestTopic.accuracy_pct >= 80) {
+    recs.push({
+      type: 'green',
+      icon: '🏆',
+      title: `Excelente em ${bestTopic.topic}!`,
+      text: `${bestTopic.accuracy_pct}% de acerto. Continue assim e explore tópicos avançados.`,
+    });
+  }
 
-    // Fallback se sem dados no modo Geral
-    if (recs.length === 0 && !isLoading) {
-      recs.push({
-        type: 'yellow',
-        icon: '💬',
-        title: 'Comece a interagir',
-        text: 'Responda questões no chat para receber recomendações personalizadas.',
-      });
-    }
+  // Fallback se sem dados no modo Geral
+  if (recs.length === 0 && !isLoading) {
+    recs.push({
+      type: 'yellow',
+      icon: '💬',
+      title: 'Comece a interagir',
+      text: 'Responda questões no chat para receber recomendações personalizadas.',
+    });
   }
 
   return (
@@ -408,58 +326,6 @@ export default function DesempenhoPage() {
         {/* Header */}
         <header className="desempenho-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <h1 className="desempenho-title">Análise de Desempenho</h1>
-          
-          <div className="desempenho-dropdown-wrapper">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsDropdownOpen(prev => !prev);
-              }}
-              className="desempenho-dropdown-trigger"
-            >
-              <span>Matéria: {selectedTopic}</span>
-              <svg 
-                className={`desempenho-dropdown-arrow ${isDropdownOpen ? 'open' : ''}`} 
-                width="14" 
-                height="14" 
-                viewBox="0 0 24 24" 
-                fill="none"
-              >
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {isDropdownOpen && (
-              <ul className="desempenho-dropdown-menu">
-                <li
-                  className={selectedTopic === 'Geral' ? 'active' : ''}
-                  onClick={() => setSelectedTopic('Geral')}
-                >
-                  Geral
-                </li>
-
-                {/* ── Disciplinas do banco de dados ── */}
-                {disciplineGroups.map((discipline) => (
-                  <>
-                    <li
-                      key={`disc-${discipline.id}`}
-                      className="desempenho-dropdown-group-label"
-                    >
-                      {discipline.name}
-                    </li>
-                    {discipline.contents.map((content) => (
-                      <li
-                        key={`content-${content.id}`}
-                        className={selectedTopic === content.name ? 'active' : ''}
-                        onClick={() => setSelectedTopic(content.name)}
-                      >
-                        {content.name}
-                      </li>
-                    ))}
-                  </>
-                ))}
-              </ul>
-            )}
-          </div>
         </header>
 
         {/* Subtitle */}
@@ -478,9 +344,7 @@ export default function DesempenhoPage() {
                 <div>
                   <p className="desempenho-stat-label">Taxa de Acerto</p>
                   <p className="desempenho-stat-value">
-                    {selectedTopicObj 
-                      ? `${selectedTopicObj.accuracy_pct}%` 
-                      : (accuracy?.accuracy_pct != null ? `${accuracy.accuracy_pct}%` : '--%')}
+                    {accuracy?.accuracy_pct != null ? `${accuracy.accuracy_pct}%` : '--%'}
                   </p>
                 </div>
               </div>
@@ -490,41 +354,27 @@ export default function DesempenhoPage() {
                 <div>
                   <p className="desempenho-stat-label">Questões Resolvidas</p>
                   <p className="desempenho-stat-value">
-                    {selectedTopicObj 
-                      ? selectedTopicObj.total 
-                      : (accuracy?.total != null ? accuracy.total : '--')}
+                    {accuracy?.total != null ? accuracy.total : '--'}
                   </p>
                 </div>
               </div>
 
               <div className="desempenho-stat-card desempenho-stat-card--teal">
-                <div className="desempenho-stat-icon">
-                  {selectedTopicObj ? <IconTrophy /> : <IconClock />}
-                </div>
+                <div className="desempenho-stat-icon"><IconClock /></div>
                 <div>
-                  <p className="desempenho-stat-label">
-                    {selectedTopicObj ? 'Acertos' : 'Mensagens Trocadas'}
-                  </p>
+                  <p className="desempenho-stat-label">Mensagens Trocadas</p>
                   <p className="desempenho-stat-value">
-                    {selectedTopicObj 
-                      ? selectedTopicObj.correct 
-                      : (studyTime?.total_messages != null ? studyTime.total_messages : '--')}
+                    {studyTime?.total_messages != null ? studyTime.total_messages : '--'}
                   </p>
                 </div>
               </div>
 
               <div className="desempenho-stat-card desempenho-stat-card--blue2">
-                <div className="desempenho-stat-icon">
-                  {selectedTopicObj ? <IconTarget /> : <IconTrend />}
-                </div>
+                <div className="desempenho-stat-icon"><IconTrend /></div>
                 <div>
-                  <p className="desempenho-stat-label">
-                    {selectedTopicObj ? 'Erros' : '% da Melhor Matéria'}
-                  </p>
+                  <p className="desempenho-stat-label">Respostas corretas</p>
                   <p className="desempenho-stat-value">
-                    {selectedTopicObj 
-                      ? selectedTopicObj.wrong 
-                      : (bestTopic ? `${bestTopic.accuracy_pct}%` : '--%')}
+                    {accuracy?.correct != null ? accuracy.correct : '--'}
                   </p>
                 </div>
               </div>
@@ -536,58 +386,51 @@ export default function DesempenhoPage() {
               <div className="desempenho-card">
                 <h2 className="desempenho-card-title">Desempenho por Tópico</h2>
 
-                {(() => {
-                  const filteredTopics = selectedTopic === 'Geral'
-                    ? byTopic
-                    : byTopic.filter((t: any) => t.topic === selectedTopic);
-                  return filteredTopics.length === 0 ? (
-                    <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
-                      {selectedTopic === 'Geral'
-                        ? 'Nenhum tópico registrado ainda. Responda questões no chat!'
-                        : `Sem dados de desempenho para "${selectedTopic}" ainda.`}
-                    </p>
-                  ) : (
-                    <>
-                      <div className="desempenho-bar-chart">
-                        {filteredTopics.map((t: any) => (
-                          <div className="desempenho-bar-row" key={t.topic}>
-                            <span className="desempenho-bar-label">{t.topic}</span>
+                {byTopic.length === 0 ? (
+                  <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
+                    Nenhum tópico registrado ainda. Responda questões no chat!
+                  </p>
+                ) : (
+                  <>
+                    <div className="desempenho-bar-chart">
+                      {byTopic.map((t: any) => (
+                        <div className="desempenho-bar-row" key={t.topic}>
+                          <span className="desempenho-bar-label">{t.topic}</span>
 
-                            <div className="desempenho-bar-track">
-                              <div
-                                className="desempenho-bar-fill desempenho-bar-fill--correct"
-                                style={{ width: `${t.accuracy_pct}%` }}
-                              />
-                            </div>
-
-                            <div className="desempenho-bar-track" style={{ height: 6 }}>
-                              <div
-                                className="desempenho-bar-fill desempenho-bar-fill--wrong"
-                                style={{ width: `${100 - t.accuracy_pct}%` }}
-                              />
-                            </div>
-
-                            <div className="desempenho-bar-meta">
-                              <span>{t.correct} acertos</span>
-                              <span>{t.wrong} erros</span>
-                            </div>
+                          <div className="desempenho-bar-track">
+                            <div
+                              className="desempenho-bar-fill desempenho-bar-fill--correct"
+                              style={{ width: `${t.accuracy_pct}%` }}
+                            />
                           </div>
-                        ))}
-                      </div>
 
-                      <div className="desempenho-bar-legend">
-                        <div className="desempenho-legend-item">
-                          <div className="desempenho-legend-dot" style={{ background: '#fca5a5' }} />
-                          <span>Erros %</span>
+                          <div className="desempenho-bar-track" style={{ height: 6 }}>
+                            <div
+                              className="desempenho-bar-fill desempenho-bar-fill--wrong"
+                              style={{ width: `${100 - t.accuracy_pct}%` }}
+                            />
+                          </div>
+
+                          <div className="desempenho-bar-meta">
+                            <span>{t.correct} acertos</span>
+                            <span>{t.wrong} erros</span>
+                          </div>
                         </div>
-                        <div className="desempenho-legend-item">
-                          <div className="desempenho-legend-dot" style={{ background: '#4791df' }} />
-                          <span>Acertos %</span>
-                        </div>
+                      ))}
+                    </div>
+
+                    <div className="desempenho-bar-legend">
+                      <div className="desempenho-legend-item">
+                        <div className="desempenho-legend-dot" style={{ background: '#fca5a5' }} />
+                        <span>Erros %</span>
                       </div>
-                    </>
-                  );
-                })()}
+                      <div className="desempenho-legend-item">
+                        <div className="desempenho-legend-dot" style={{ background: '#4791df' }} />
+                        <span>Acertos %</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Recomendações */}
@@ -610,13 +453,13 @@ export default function DesempenhoPage() {
                 </div>
               </div>
 
-              {/* Gráfico de pizza — distribuição de tópicos */}
+              {/* Gráfico de pizza — distribuição por matéria */}
               <div className="desempenho-card">
-                <h2 className="desempenho-card-title">Distribuição de Questões por Tópico</h2>
+                <h2 className="desempenho-card-title">Distribuição de Questões por Matéria</h2>
 
                 {pieSlices.length === 0 ? (
                   <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
-                    Sem dados suficientes ainda.
+                    Sem dados de simulados por matéria ainda.
                   </p>
                 ) : (
                   <div className="desempenho-pie-wrapper">
@@ -642,9 +485,7 @@ export default function DesempenhoPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {[
                     { label: 'Total de sessões',    value: studyTime?.total_sessions ?? '--' },
-                    { label: 'Total de mensagens',  value: studyTime?.total_messages ?? '--' },
-                    { label: 'Questões respondidas', value: accuracy?.total ?? '--' },
-                    { label: 'Respostas corretas',  value: accuracy?.correct ?? '--' },
+                    { label: 'Última atividade no chat',    value: lastStudiedLabel },
                     { label: 'Respostas erradas',   value: accuracy?.wrong ?? '--' },
                   ].map((item) => (
                     <div
