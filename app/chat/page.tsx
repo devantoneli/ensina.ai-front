@@ -479,6 +479,17 @@ function ChatContent() {
   const searchParams = useSearchParams();
   const shouldStartNewChat = searchParams.get('new') === '1';
   const sessionIdFromQuery = searchParams.get('session_id');
+  const parseQueryId = (key: 'content_id' | 'chat_id' | 'exam_id' | 'question_id'): number | undefined => {
+    const rawValue = searchParams.get(key);
+    if (rawValue === null || rawValue === '') return undefined;
+    if (!/^\d+$/.test(rawValue)) return undefined;
+    const value = Number(rawValue);
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  };
+  const contentIdFromQuery = parseQueryId('content_id');
+  const chatIdFromQuery = parseQueryId('chat_id');
+  const examIdFromQuery = parseQueryId('exam_id');
+  const questionIdFromQuery = parseQueryId('question_id');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -636,6 +647,7 @@ function ChatContent() {
   const greetingLine = userName ? `${userName}` : '';
   const assistantMetaTitle = activeSession?.latestAnalysis?.classification?.discipline ?? '';
   const assistantMetaSubtitle = activeSession?.latestAnalysis?.classification?.contents?.[0] ?? '';
+  const activeContentId = activeSession?.latestAnalysis?.classification?.content_ids?.[contentIndex];
 
   const createSession = (question: string): string => {
     const now = new Date().toISOString();
@@ -749,6 +761,10 @@ function ChatContent() {
         {
           messages: fullHistory,
           mode: mode === 'modo_ensino' ? 'ensino' : 'responde',
+          content_id: contentIdFromQuery ?? activeContentId,
+          chat_id: chatIdFromQuery,
+          exam_id: examIdFromQuery,
+          question_id: questionIdFromQuery,
         },
         {
           onMeta: (meta) => {
