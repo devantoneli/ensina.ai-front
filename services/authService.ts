@@ -245,4 +245,26 @@ export const authService = {
     localStorage.setItem(USER_DATA_KEY, JSON.stringify(response.data));
     return response.data;
   },
+
+  /**
+   * Altera a senha do usuário autenticado
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    if (isMockAuthEnabled()) {
+      const users = readMockUsers();
+      const currentUser = this.getCurrentUser();
+      if (!currentUser) throw new Error('Nenhum usuário autenticado.');
+      const userIndex = users.findIndex((u) => u.id === currentUser.id);
+      if (userIndex === -1) throw new Error('Usuário não encontrado.');
+      if (users[userIndex].password !== currentPassword) throw new Error('Senha atual incorreta.');
+      users[userIndex].password = newPassword;
+      writeMockUsers(users);
+      return;
+    }
+
+    await api.post('/users/me/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
 };

@@ -235,6 +235,11 @@ export default function ConfigPage() {
   const [hasChanged, setHasChanged] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarUploadError, setAvatarUploadError] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -373,6 +378,50 @@ export default function ConfigPage() {
     } finally {
       setIsUploadingAvatar(false);
       e.target.value = '';
+    }
+  };
+
+  const handlePasswordFormChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+    setPasswordError('');
+    setPasswordSuccess('');
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setPasswordError('');
+    setPasswordSuccess('');
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword) {
+      setPasswordError('Informe a senha atual.');
+      return;
+    }
+    if (!passwordForm.newPassword) {
+      setPasswordError('Informe a nova senha.');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('As novas senhas não coincidem.');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      await authService.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      setPasswordSuccess('Senha alterada com sucesso!');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: unknown) {
+      const anyError = error as { response?: { data?: unknown } };
+      if (anyError?.response?.data) {
+        setPasswordError(parseErrorMessage(anyError.response.data, 'Erro ao alterar senha.'));
+      } else {
+        setPasswordError(error instanceof Error ? error.message : 'Erro ao alterar senha.');
+      }
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -580,7 +629,7 @@ export default function ConfigPage() {
                   <div className="config-option-header">
                     <h3>Alterar senha</h3>
                   </div>
-                  <button type="button" className="config-action-button">
+                  <button type="button" className="config-action-button" onClick={() => setShowPasswordModal(true)}>
                     Alterar
                   </button>
                 </div>
@@ -738,6 +787,72 @@ export default function ConfigPage() {
           </section>
         </div>
       </main>
+
+      {showPasswordModal && (
+        <div className="config-modal-overlay" onClick={handleClosePasswordModal}>
+          <div className="config-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="config-modal-header">
+              <h2>Alterar senha</h2>
+              <button type="button" className="config-modal-close" onClick={handleClosePasswordModal} aria-label="Fechar">
+                ✕
+              </button>
+            </div>
+            <div className="config-modal-body">
+              {passwordError && <p className="config-modal-error">{passwordError}</p>}
+              {passwordSuccess && <p className="config-modal-success">{passwordSuccess}</p>}
+              <div className="config-form-group">
+                <label htmlFor="currentPassword">Senha atual</label>
+                <input
+                  id="currentPassword"
+                  type="password"
+                  name="currentPassword"
+                  value={passwordForm.currentPassword}
+                  onChange={handlePasswordFormChange}
+                  placeholder="Digite sua senha atual"
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="config-form-group">
+                <label htmlFor="newPassword">Nova senha</label>
+                <input
+                  id="newPassword"
+                  type="password"
+                  name="newPassword"
+                  value={passwordForm.newPassword}
+                  onChange={handlePasswordFormChange}
+                  placeholder="Digite a nova senha"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="config-form-group">
+                <label htmlFor="confirmPassword">Confirmar nova senha</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  name="confirmPassword"
+                  value={passwordForm.confirmPassword}
+                  onChange={handlePasswordFormChange}
+                  placeholder="Confirme a nova senha"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+            <div className="config-modal-footer">
+              <button type="button" className="config-modal-cancel" onClick={handleClosePasswordModal}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="config-save-button"
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? 'Alterando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

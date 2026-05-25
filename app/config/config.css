@@ -437,6 +437,119 @@
   color: #1e7bc4;
 }
 
+/* Modal de alterar senha */
+.config-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 60, 100, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.config-modal {
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 48px rgba(30, 80, 160, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.config-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid rgba(71, 145, 223, 0.15);
+}
+
+.config-modal-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2f79cb;
+}
+
+.config-modal-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.config-modal-close:hover {
+  background: rgba(71, 145, 223, 0.1);
+  color: #2f79cb;
+}
+
+.config-modal-body {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.config-modal-error {
+  margin: 0;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #b42318;
+  font-weight: 500;
+}
+
+.config-modal-success {
+  margin: 0;
+  padding: 10px 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #166534;
+  font-weight: 500;
+}
+
+.config-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 28px 24px;
+  border-top: 1px solid rgba(71, 145, 223, 0.15);
+}
+
+.config-modal-cancel {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(71, 145, 223, 0.3);
+  border-radius: 10px;
+  color: #5f85ad;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.config-modal-cancel:hover {
+  background: rgba(71, 145, 223, 0.08);
+  border-color: rgba(71, 145, 223, 0.5);
+  color: #2f79cb;
+}
+
 /* Scrollbar customizado */
 .config-content::-webkit-scrollbar,
 .config-sidebar::-webkit-scrollbar {
