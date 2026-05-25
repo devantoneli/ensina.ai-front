@@ -4,6 +4,12 @@ import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { simuladoService } from '@/services/simuladoService';
+import {
+  getSimuladoAnswersStorageKey,
+  getSimuladoCorrectAnswersStorageKey,
+  getSimuladoKeysStorageKey,
+  getSimuladoResultStorageKey,
+} from '@/utils/simuladoStorage';
 import '../../../simulados.css';
 
 type OptionLabel = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -139,19 +145,20 @@ export default function SimuladoResolverPage() {
 
     try {
       if (typeof window !== 'undefined') {
-        const raw = window.localStorage.getItem('completed_simulado_keys');
+        const completedKeysKey = getSimuladoKeysStorageKey();
+        const raw = window.localStorage.getItem(completedKeysKey);
         const keys = raw ? (JSON.parse(raw) as string[]) : [];
         const unique = Array.isArray(keys) ? Array.from(new Set([...keys, simuladoCompletionKey])) : [simuladoCompletionKey];
-        window.localStorage.setItem('completed_simulado_keys', JSON.stringify(unique));
+        window.localStorage.setItem(completedKeysKey, JSON.stringify(unique));
 
         const correct = questions.filter((q) => answers[q.id] === realCorrectAnswers[q.id]).length;
         const total = questions.length;
         const percentage = Math.round((correct / total) * 100);
 
-        window.localStorage.setItem(`simulado_answers_${simuladoCompletionKey}`, JSON.stringify(answers));
-        window.localStorage.setItem(`simulado_correct_answers_${simuladoCompletionKey}`, JSON.stringify(realCorrectAnswers));
+        window.localStorage.setItem(getSimuladoAnswersStorageKey(simuladoCompletionKey), JSON.stringify(answers));
+        window.localStorage.setItem(getSimuladoCorrectAnswersStorageKey(simuladoCompletionKey), JSON.stringify(realCorrectAnswers));
         window.localStorage.setItem(
-          `simulado_result_${simuladoCompletionKey}`,
+          getSimuladoResultStorageKey(simuladoCompletionKey),
           JSON.stringify({ correct, total, percentage })
         );
       }

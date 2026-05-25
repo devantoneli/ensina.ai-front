@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import { getSimuladoResultStorageKey } from '@/utils/simuladoStorage';
 import '../../../simulados.css';
 
 function safeDecode(value: string): string {
@@ -66,8 +67,9 @@ export default function SimuladoResultadoPage() {
       }
 
       const completionKey = normalizeCompletionKey(titulo, nivelExibido);
-      const resultKey = `simulado_result_${completionKey}`;
-      const storedResult = window.localStorage.getItem(resultKey);
+      const storedResult = window.localStorage.getItem(
+        getSimuladoResultStorageKey(completionKey)
+      );
 
       if (storedResult) {
         const parsed = JSON.parse(storedResult) as ResultData;

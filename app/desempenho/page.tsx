@@ -6,6 +6,7 @@ import ChatSidebar from '@/components/chat/ChatSidebar';
 import { useProgress } from '@/hooks/useProgress';
 import { simuladoService } from '@/services/simuladoService';
 import api from '@/services/api';
+import { getSimuladoKeysStorageKey, getSimuladoResultStorageKey } from '@/utils/simuladoStorage';
 import './desempenho.css';
 
 // ── Ícones SVG inline ──────────────────────────────────────
@@ -125,8 +126,7 @@ export default function DesempenhoPage() {
     const mergeData = async () => {
       try {
         const examsList = await simuladoService.list();
-        
-        const rawKeys = window.localStorage.getItem('completed_simulado_keys');
+        const rawKeys = window.localStorage.getItem(getSimuladoKeysStorageKey());
         const completedKeys = rawKeys ? (JSON.parse(rawKeys) as string[]) : [];
 
         let simulatedCorrect = 0;
@@ -135,7 +135,7 @@ export default function DesempenhoPage() {
         const simulatedTopicStats: Record<string, { correct: number; wrong: number; total: number }> = {};
 
         completedKeys.forEach((key) => {
-          const resultRaw = window.localStorage.getItem(`simulado_result_${key}`);
+          const resultRaw = window.localStorage.getItem(getSimuladoResultStorageKey(key));
           if (!resultRaw) return;
 
           const result = JSON.parse(resultRaw) as { correct: number; total: number; percentage: number };

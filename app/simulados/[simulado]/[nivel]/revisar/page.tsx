@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { simuladoService } from '@/services/simuladoService';
+import { getSimuladoAnswersStorageKey } from '@/utils/simuladoStorage';
 import '../../../simulados.css';
 
 type OptionLabel = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -119,8 +120,9 @@ export default function SimuladoRevisarPage() {
         setCorrectAnswers(tempCorrectAnswers);
 
         try {
-          const answersKey = `simulado_answers_${simuladoCompletionKey}`;
-          const storedAnswers = window.localStorage.getItem(answersKey);
+          const storedAnswers = window.localStorage.getItem(
+            getSimuladoAnswersStorageKey(simuladoCompletionKey)
+          );
           if (storedAnswers) {
             setUserAnswers(JSON.parse(storedAnswers) as Record<string, OptionLabel>);
           }

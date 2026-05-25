@@ -7,6 +7,7 @@ import { authService } from '@/services/authService';
 import { useProgress } from '@/hooks/useProgress';
 import { simuladoService } from '@/services/simuladoService';
 import type { Simulado } from '@/types/simulados';
+import { getSimuladoKeysStorageKey, getSimuladoResultStorageKey } from '@/utils/simuladoStorage';
 import './history.css';
 
 // ── Tipos ─────────────────────────────────────────────────
@@ -80,13 +81,13 @@ function loadChatSessions(): ChatSession[] {
 function loadCompletedSimulados(examsList: Simulado[]): CompletedSimulado[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem('completed_simulado_keys');
+    const raw = window.localStorage.getItem(getSimuladoKeysStorageKey());
     const keys: string[] = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(keys)) return [];
 
     return keys
       .map((key) => {
-        const resultRaw = window.localStorage.getItem(`simulado_result_${key}`);
+        const resultRaw = window.localStorage.getItem(getSimuladoResultStorageKey(key));
         if (!resultRaw) return null;
         const result = JSON.parse(resultRaw) as { correct: number; total: number; percentage: number };
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
+import { getSimuladoKeysStorageKey } from '@/utils/simuladoStorage';
 import '../../simulados.css';
 
 function safeDecode(value: string): string {
@@ -55,7 +56,7 @@ export default function SimuladoDetalhePage() {
   useEffect(() => {
     try {
       if (typeof window === 'undefined') return;
-      const raw = window.localStorage.getItem('completed_simulado_keys');
+      const raw = window.localStorage.getItem(getSimuladoKeysStorageKey());
       if (!raw) {
         setHasCompletedBefore(false);
         return;
