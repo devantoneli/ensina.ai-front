@@ -38,78 +38,15 @@ function levelLabel(value: string): string {
 function normalizeCompletionKey(title: string, level: string): string {
   const normalizedTitle = title
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 
   const normalizedLevel = level
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 
   return `${normalizedTitle}::${normalizedLevel}`;
-}
-
-function getQuestionCountByType(title: string, level: string): number {
-  const normalizedTitle = title
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-  const normalizedLevel = level
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-  if (normalizedTitle.includes('gramatica') || normalizedTitle.includes('ortografia')) {
-    return 10;
-  }
-
-  if (normalizedTitle.includes('interpretacao') || normalizedTitle.includes('literatura')) {
-    return 8;
-  }
-
-  if (normalizedLevel.includes('facil')) {
-    return 6;
-  }
-
-  if (normalizedLevel.includes('dificil')) {
-    return 12;
-  }
-
-  return 9;
-}
-
-function createPlaceholderQuestions(title: string, level: string): SimuladoQuestion[] {
-  const total = getQuestionCountByType(title, level);
-  const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-
-  return Array.from({ length: total }, (_, index) => {
-    const number = index + 1;
-    return {
-      id: `q-${number}`,
-      statement: `${title}: escolha a alternativa correta para este enunciado de nível ${level}.`,
-      options: labels.map((label) => ({
-        label,
-        text: `Alternativa ${label} (placeholder) para a questão ${number}.`,
-      })),
-    };
-  });
-}
-
-function generateCorrectAnswers(questions: SimuladoQuestion[]): Record<string, OptionLabel> {
-  const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-  const result: Record<string, OptionLabel> = {};
-
-  questions.forEach((question) => {
-    const hash = Array.from(question.id).reduce((acc, char) => {
-      return ((acc << 5) - acc) + char.charCodeAt(0);
-    }, 0);
-    
-    const index = Math.abs(hash) % labels.length;
-    result[question.id] = labels[index];
-  });
-
-  return result;
 }
 
 export default function SimuladoResolverPage() {
@@ -120,11 +57,12 @@ export default function SimuladoResolverPage() {
 
   const titulo = simulado ? safeDecode(simulado) : 'Simulado';
   const nivelExibido = nivel ? levelLabel(safeDecode(nivel)) : 'Nível';
-  
+
   const [questions, setQuestions] = useState<SimuladoQuestion[]>([]);
   const [realCorrectAnswers, setRealCorrectAnswers] = useState<Record<string, OptionLabel>>({});
   const [loading, setLoading] = useState(true);
-  
+  const [noQuestions, setNoQuestions] = useState(false);
+
   const [answers, setAnswers] = useState<Record<string, OptionLabel>>({});
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
@@ -169,12 +107,11 @@ export default function SimuladoResolverPage() {
           }
         }
       } catch (err) {
-        console.error('Erro ao carregar questões reais, usando placeholders...', err);
+        console.error('Erro ao carregar questões do simulado:', err);
       }
 
       if (isMounted) {
-        const placeholders = createPlaceholderQuestions(titulo, nivelExibido);
-        setQuestions(placeholders);
+        setNoQuestions(true);
         setLoading(false);
       }
     };
@@ -199,7 +136,7 @@ export default function SimuladoResolverPage() {
 
   const handleFinalize = () => {
     if (!allAnswered) return;
-    
+
     try {
       if (typeof window !== 'undefined') {
         const raw = window.localStorage.getItem('completed_simulado_keys');
@@ -207,16 +144,12 @@ export default function SimuladoResolverPage() {
         const unique = Array.isArray(keys) ? Array.from(new Set([...keys, simuladoCompletionKey])) : [simuladoCompletionKey];
         window.localStorage.setItem('completed_simulado_keys', JSON.stringify(unique));
 
-        const correctAnswers = Object.keys(realCorrectAnswers).length > 0
-          ? realCorrectAnswers
-          : generateCorrectAnswers(questions);
-        
-        const correct = questions.filter((q) => answers[q.id] === correctAnswers[q.id]).length;
+        const correct = questions.filter((q) => answers[q.id] === realCorrectAnswers[q.id]).length;
         const total = questions.length;
         const percentage = Math.round((correct / total) * 100);
 
         window.localStorage.setItem(`simulado_answers_${simuladoCompletionKey}`, JSON.stringify(answers));
-        window.localStorage.setItem(`simulado_correct_answers_${simuladoCompletionKey}`, JSON.stringify(correctAnswers));
+        window.localStorage.setItem(`simulado_correct_answers_${simuladoCompletionKey}`, JSON.stringify(realCorrectAnswers));
         window.localStorage.setItem(
           `simulado_result_${simuladoCompletionKey}`,
           JSON.stringify({ correct, total, percentage })
@@ -242,6 +175,39 @@ export default function SimuladoResolverPage() {
         <ChatSidebar />
         <main className="simulados-shell simulados-detail">
           <div className="py-12 text-center text-[#64748b]">Carregando questões do simulado...</div>
+        </main>
+      </div>
+    );
+  }
+
+  if (noQuestions) {
+    return (
+      <div className="simulados-page">
+        <ChatSidebar />
+        <main className="simulados-shell simulados-detail">
+          <section className="simulado-runner">
+            <header className="simulado-runner-header">
+              <div>
+                <p className="simulado-runner-kicker">Execução do simulado</p>
+                <h1>{titulo}</h1>
+                <p>
+                  Nível selecionado: <strong>{nivelExibido}</strong>
+                </p>
+              </div>
+            </header>
+
+            <div className="simulados-empty-state">
+              <h2>Nenhuma questão disponível</h2>
+              <p>Este simulado ainda não possui questões cadastradas.</p>
+              <button
+                type="button"
+                className="simulado-runner-button simulado-runner-button--ghost"
+                onClick={() => router.push('/simulados')}
+              >
+                Voltar para simulados
+              </button>
+            </div>
+          </section>
         </main>
       </div>
     );
