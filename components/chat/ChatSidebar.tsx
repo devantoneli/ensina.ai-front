@@ -185,14 +185,14 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
 
   const handleBack = () => {
     if (typeof window !== 'undefined') {
-      const previousRoute = window.sessionStorage.getItem('ensina_ai_previous_route');
-      if (previousRoute && previousRoute !== pathname) {
-        router.push(previousRoute);
+      if (window.history.length > 1) {
+        router.back();
         return;
       }
 
-      if (window.history.length > 1) {
-        router.back();
+      const previousRoute = window.sessionStorage.getItem('ensina_ai_previous_route');
+      if (previousRoute && previousRoute !== pathname) {
+        router.push(previousRoute);
         return;
       }
     }
@@ -291,26 +291,26 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
           ref={quickMenuRef}
           className="absolute left-[86px] top-1/2 z-40 w-[260px] -translate-y-1/2 rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-[0_16px_30px_rgba(34,67,111,0.2)]"
         >
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8a9bb2]">Acesso rapido</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#2f79cb]">Acesso rapido</p>
           <div className="mt-[12px] space-y-[8px]">
             <button
               type="button"
               onClick={handleSimulados}
-              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
+              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#2f79cb] transition hover:bg-[#f3f6fb]"
             >
               Simulados
             </button>
             <button
               type="button"
               onClick={handleHistory}
-              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
+              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#2f79cb] transition hover:bg-[#f3f6fb]"
             >
               Historico de conversas
             </button>
             <button
               type="button"
               onClick={handleDesempenho}
-              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] transition hover:bg-[#f3f6fb]"
+              className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#2f79cb] transition hover:bg-[#f3f6fb]"
             >
               Desempenho
             </button>

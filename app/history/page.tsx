@@ -130,7 +130,6 @@ export default function HistoryPage() {
 
   const { dashboard, isLoading: isLoadingProgress } = useProgress();
 
-  const accuracyPct = dashboard?.accuracy?.accuracy_pct ?? null;
   const totalMessages = dashboard?.study_time?.total_messages ?? null;
   const totalSessions = dashboard?.study_time?.total_sessions ?? null;
   const weakTopics = dashboard?.weak_topics ?? [];
@@ -171,6 +170,27 @@ export default function HistoryPage() {
   }, [isAuthorized]);
 
   const latestChat = useMemo(() => chatSessions[0] ?? null, [chatSessions]);
+
+  const localSimuladoTotals = useMemo(
+    () =>
+      completedSimulados.reduce(
+        (acc, sim) => ({
+          correct: acc.correct + sim.correct,
+          total: acc.total + sim.total,
+        }),
+        { correct: 0, total: 0 }
+      ),
+    [completedSimulados]
+  );
+
+  const combinedAccuracyPct = useMemo(() => {
+    const backendCorrect = dashboard?.accuracy?.correct ?? 0;
+    const backendTotal = dashboard?.accuracy?.total ?? 0;
+    const combinedCorrect = backendCorrect + localSimuladoTotals.correct;
+    const combinedTotal = backendTotal + localSimuladoTotals.total;
+    if (combinedTotal === 0) return null;
+    return Math.round((combinedCorrect / combinedTotal) * 100);
+  }, [dashboard, localSimuladoTotals]);
 
   if (!isAuthorized) return null;
 
@@ -221,15 +241,15 @@ export default function HistoryPage() {
             <article className="history-summary-card">
               <p className="history-summary-label">Desempenho geral</p>
               <p className="history-summary-value">
-                {isLoadingProgress
+                {isLoading
                   ? 'Carregando...'
-                  : accuracyPct !== null
-                  ? `${accuracyPct}%`
+                  : combinedAccuracyPct !== null
+                  ? `${combinedAccuracyPct}%`
                   : '--%'}
               </p>
               <p className="history-summary-meta">
-                {accuracyPct !== null
-                  ? 'Taxa de acerto nas questões respondidas'
+                {combinedAccuracyPct !== null
+                  ? 'Taxa de acerto geral (chat e simulados)'
                   : 'Seu desempenho aparecerá após responder questões.'}
               </p>
             </article>
