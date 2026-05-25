@@ -38,78 +38,15 @@ function levelLabel(value: string): string {
 function normalizeCompletionKey(title: string, level: string): string {
   const normalizedTitle = title
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 
   const normalizedLevel = level
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 
   return `${normalizedTitle}::${normalizedLevel}`;
-}
-
-function getQuestionCountByType(title: string, level: string): number {
-  const normalizedTitle = title
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-  const normalizedLevel = level
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-  if (normalizedTitle.includes('gramatica') || normalizedTitle.includes('ortografia')) {
-    return 10;
-  }
-
-  if (normalizedTitle.includes('interpretacao') || normalizedTitle.includes('literatura')) {
-    return 8;
-  }
-
-  if (normalizedLevel.includes('facil')) {
-    return 6;
-  }
-
-  if (normalizedLevel.includes('dificil')) {
-    return 12;
-  }
-
-  return 9;
-}
-
-function createPlaceholderQuestions(title: string, level: string): SimuladoQuestion[] {
-  const total = getQuestionCountByType(title, level);
-  const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-
-  return Array.from({ length: total }, (_, index) => {
-    const number = index + 1;
-    return {
-      id: `q-${number}`,
-      statement: `${title}: escolha a alternativa correta para este enunciado de nível ${level}.`,
-      options: labels.map((label) => ({
-        label,
-        text: `Alternativa ${label} (placeholder) para a questão ${number}.`,
-      })),
-    };
-  });
-}
-
-function generateCorrectAnswers(questions: SimuladoQuestion[]): Record<string, OptionLabel> {
-  const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-  const result: Record<string, OptionLabel> = {};
-
-  questions.forEach((question) => {
-    const hash = Array.from(question.id).reduce((acc, char) => {
-      return ((acc << 5) - acc) + char.charCodeAt(0);
-    }, 0);
-    
-    const index = Math.abs(hash) % labels.length;
-    result[question.id] = labels[index];
-  });
-
-  return result;
 }
 
 export default function SimuladoRevisarPage() {
@@ -120,11 +57,12 @@ export default function SimuladoRevisarPage() {
 
   const titulo = simulado ? safeDecode(simulado) : 'Simulado';
   const nivelExibido = nivel ? levelLabel(safeDecode(nivel)) : 'Nível';
-  
+
   const [questions, setQuestions] = useState<SimuladoQuestion[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<string, OptionLabel>>({});
   const [correctAnswers, setCorrectAnswers] = useState<Record<string, OptionLabel>>({});
   const [loading, setLoading] = useState(true);
+  const [noQuestions, setNoQuestions] = useState(false);
 
   const simuladoCompletionKey = useMemo(() => normalizeCompletionKey(titulo, nivelExibido), [titulo, nivelExibido]);
 
@@ -167,34 +105,24 @@ export default function SimuladoRevisarPage() {
           }
         }
       } catch (err) {
-        console.error('Erro ao carregar questões para revisão, usando placeholders...', err);
+        console.error('Erro ao carregar questões para revisão:', err);
       }
 
       if (isMounted) {
         if (!usedRealQuestions) {
-          tempQuestions = createPlaceholderQuestions(titulo, nivelExibido);
-          tempCorrectAnswers = generateCorrectAnswers(tempQuestions);
+          setNoQuestions(true);
+          setLoading(false);
+          return;
         }
 
         setQuestions(tempQuestions);
+        setCorrectAnswers(tempCorrectAnswers);
 
         try {
           const answersKey = `simulado_answers_${simuladoCompletionKey}`;
           const storedAnswers = window.localStorage.getItem(answersKey);
           if (storedAnswers) {
             setUserAnswers(JSON.parse(storedAnswers) as Record<string, OptionLabel>);
-          }
-
-          if (usedRealQuestions) {
-            setCorrectAnswers(tempCorrectAnswers);
-          } else {
-            const correctKey = `simulado_correct_answers_${simuladoCompletionKey}`;
-            const storedCorrect = window.localStorage.getItem(correctKey);
-            if (storedCorrect) {
-              setCorrectAnswers(JSON.parse(storedCorrect) as Record<string, OptionLabel>);
-            } else {
-              setCorrectAnswers(tempCorrectAnswers);
-            }
           }
         } catch (error) {
           console.error('Error loading answers from localStorage:', error);
@@ -222,6 +150,39 @@ export default function SimuladoRevisarPage() {
         <main className="simulados-shell simulados-detail">
           <section className="simulado-runner">
             <p className="text-center text-[#64748b]">Carregando revisão...</p>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (noQuestions) {
+    return (
+      <div className="simulados-page">
+        <ChatSidebar />
+        <main className="simulados-shell simulados-detail">
+          <section className="simulado-runner">
+            <header className="simulado-runner-header">
+              <div>
+                <p className="simulado-runner-kicker">Revisão do simulado</p>
+                <h1>{titulo}</h1>
+                <p>
+                  Nível selecionado: <strong>{nivelExibido}</strong>
+                </p>
+              </div>
+            </header>
+
+            <div className="simulados-empty-state">
+              <h2>Nenhuma questão disponível</h2>
+              <p>Este simulado ainda não possui questões cadastradas.</p>
+              <button
+                type="button"
+                className="simulado-runner-button simulado-runner-button--ghost"
+                onClick={handleVoltar}
+              >
+                Voltar para simulados
+              </button>
+            </div>
           </section>
         </main>
       </div>
