@@ -479,6 +479,17 @@ function ChatContent() {
   const searchParams = useSearchParams();
   const shouldStartNewChat = searchParams.get('new') === '1';
   const sessionIdFromQuery = searchParams.get('session_id');
+  const parseQueryId = (key: 'content_id' | 'chat_id' | 'exam_id' | 'question_id'): number | undefined => {
+    const rawValue = searchParams.get(key);
+    if (rawValue === null || rawValue === '') return undefined;
+    if (!/^\d+$/.test(rawValue)) return undefined;
+    const value = Number(rawValue);
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  };
+  const contentIdFromQuery = parseQueryId('content_id');
+  const chatIdFromQuery = parseQueryId('chat_id');
+  const examIdFromQuery = parseQueryId('exam_id');
+  const questionIdFromQuery = parseQueryId('question_id');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -636,6 +647,7 @@ function ChatContent() {
   const greetingLine = userName ? `${userName}` : '';
   const assistantMetaTitle = activeSession?.latestAnalysis?.classification?.discipline ?? '';
   const assistantMetaSubtitle = activeSession?.latestAnalysis?.classification?.contents?.[0] ?? '';
+  const activeContentId = activeSession?.latestAnalysis?.classification?.content_ids?.[contentIndex];
 
   const createSession = (question: string): string => {
     const now = new Date().toISOString();
@@ -729,36 +741,97 @@ function ChatContent() {
 
     appendMessage(sessionId, userMessage);
 
+    const assistantMessageId = makeId();
+    appendMessage(sessionId, {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      createdAt: new Date().toISOString(),
+      sources: [],
+    });
+
     try {
-      const response = await chatService.sendMessage([{ role: 'user', content: question }], mode);
+      const sessionMessages = sessions.find((session) => session.id === sessionId)?.messages ?? [];
+      const fullHistory = [...sessionMessages, userMessage].map((message) => ({
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: message.content,
+      }));
 
-      const data: FreeModeResponse = {
-        state: response.state,
-        conversation_mode: response.conversation_mode,
-        message: response.message,
-        classification: response.classification,
-        teaching: response.teaching,
-        trail: response.trail,
-        recommended_studies: response.recommended_studies,
-      };
-
-      appendMessage(
-        sessionId,
+      await chatService.streamTutorResponse(
         {
-          id: makeId(),
-          role: 'assistant',
-          content: buildAssistantMarkdown(question, data, true),
-          createdAt: new Date().toISOString(),
+          messages: fullHistory,
+          mode: mode === 'modo_ensino' ? 'ensino' : 'responde',
+          content_id: contentIdFromQuery ?? activeContentId,
+          chat_id: chatIdFromQuery,
+          exam_id: examIdFromQuery,
+          question_id: questionIdFromQuery,
         },
-        data
+        {
+          onMeta: (meta) => {
+            const metaSources = meta.sources_consulted ?? meta.sources ?? [];
+
+            setSessions((prev) =>
+              prev.map((session) => {
+                if (session.id !== sessionId) return session;
+                return {
+                  ...session,
+                  messages: session.messages.map((message) =>
+                    message.id === assistantMessageId
+                      ? {
+                          ...message,
+                          sources: metaSources.map((source) => ({
+                            name: source.name,
+                            url: source.url,
+                            contents: [],
+                          })),
+                        }
+                      : message,
+                  ),
+                };
+              }),
+            );
+          },
+          onDelta: (token) => {
+            setSessions((prev) =>
+              prev.map((session) => {
+                if (session.id !== sessionId) return session;
+                return {
+                  ...session,
+                  updatedAt: new Date().toISOString(),
+                  messages: session.messages.map((message) =>
+                    message.id === assistantMessageId
+                      ? { ...message, content: `${message.content}${token}` }
+                      : message,
+                  ),
+                };
+              }),
+            );
+          },
+        },
       );
     } catch {
-      appendMessage(sessionId, {
-        id: makeId(),
-        role: 'assistant',
-        content: buildAssistantMarkdown(question, { message: 'Não foi possível conectar ao serviço de IA no momento.' }, false),
-        createdAt: new Date().toISOString(),
-      });
+      setSessions((prev) =>
+        prev.map((session) => {
+          if (session.id !== sessionId) return session;
+          return {
+            ...session,
+            messages: session.messages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content:
+                      message.content ||
+                      buildAssistantMarkdown(
+                        question,
+                        { message: 'Não foi possível conectar ao serviço de IA no momento.' },
+                        false,
+                      ),
+                  }
+                : message,
+            ),
+          };
+        }),
+      );
     } finally {
       setIsSending(false);
     }
@@ -1068,4 +1141,3 @@ export default function ChatPage() {
     </Suspense>
   );
 }
-
