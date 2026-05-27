@@ -695,10 +695,12 @@ function ChatContent() {
 
     try {
       const sessionMessages = sessions.find((session) => session.id === sessionId)?.messages ?? [];
-      const fullHistory = [...sessionMessages, userMessage].map((message) => ({
-        role: (message.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-        content: message.content,
-      }));
+      const fullHistory = [...sessionMessages, userMessage]
+        .filter((message) => message.content.trim() !== '')
+        .map((message) => ({
+          role: (message.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+          content: message.content,
+        }));
 
       await chatService.streamTutorResponse(
         {

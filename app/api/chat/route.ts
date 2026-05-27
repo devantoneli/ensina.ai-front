@@ -46,6 +46,16 @@ export async function POST(req: NextRequest) {
 
   const endpoint = `${backendBaseUrl}/chat-tutor/`;
 
+  const requestBody = {
+    messages: body.messages,
+    mode: body.mode,
+    content_id: body.content_id,
+    chat_id: body.chat_id,
+    exam_id: body.exam_id,
+    question_id: body.question_id,
+  };
+  console.log('[chat/route] payload →', JSON.stringify(requestBody));
+
   try {
     const backendResponse = await fetch(endpoint, {
       method: 'POST',
@@ -53,16 +63,10 @@ export async function POST(req: NextRequest) {
         Authorization: authorization,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messages: body.messages,
-        mode: body.mode,
-        content_id: body.content_id,
-        chat_id: body.chat_id,
-        exam_id: body.exam_id,
-        question_id: body.question_id,
-      }),
+      body: JSON.stringify(requestBody),
       cache: 'no-store',
     });
+    console.log('[chat/route] backend status →', backendResponse.status, backendResponse.headers.get('content-type'));
 
     const contentType = backendResponse.headers.get('content-type') ?? '';
 
