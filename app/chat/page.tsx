@@ -4,7 +4,8 @@ import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react
 import { useSearchParams } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import TutorMarkdown from '@/components/TutorMarkdown';
-import { chatService } from '@/services/chatService';
+import { chatService, chatPersistenceService } from '@/services/chatService';
+import type { BackendMessage } from '@/services/chatService';
 import './chat.css';
 
 type ChatMessage = {
@@ -79,6 +80,7 @@ type TrailSource = {
 
 type ChatSession = {
   id: string;
+  backendId?: number;
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +110,7 @@ function sanitizeSessions(data: unknown): ChatSession[] {
 
       return {
         id: raw.id,
+        ...(typeof raw.backendId === 'number' ? { backendId: raw.backendId } : {}),
         title: raw.title,
         createdAt: raw.createdAt ?? new Date().toISOString(),
         updatedAt: raw.updatedAt ?? raw.createdAt ?? new Date().toISOString(),
@@ -211,79 +214,41 @@ function sentenceCase(text: string): string {
   return result;
 }
 
-function extractHistoryItems(payload: unknown): unknown[] {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload;
-  if (typeof payload !== 'object') return [];
 
-  const obj = payload as Record<string, unknown>;
-  const data = obj.data as Record<string, unknown> | undefined;
-
-  const candidates = [
-    obj.data,
-    obj.history,
-    obj.sessions,
-    obj.conversations,
-    obj.chats,
-    data?.history,
-    data?.sessions,
-    data?.conversations,
-    data?.chats,
-  ];
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate;
-  }
-
-  return [];
+function mapBackendMessage(msg: BackendMessage, chatId: number, index: number): ChatMessage {
+  return {
+    id: `${chatId}-${msg.id ?? index}`,
+    role: msg.sender === 'USER' ? 'user' : 'assistant',
+    content: msg.content,
+    createdAt: msg.sent_at,
+  };
 }
 
-function parseHistoryMessages(messages: unknown, fallbackDate: string, sessionId: string): ChatMessage[] {
-  if (!Array.isArray(messages)) return [];
+function parseBackendHistory(payload: unknown): ChatSession[] {
+  if (!Array.isArray(payload)) return [];
 
-  return messages
-    .map((item, index) => {
+  return payload
+    .map((item): ChatSession | null => {
+      if (typeof item !== 'object' || !item) return null;
       const raw = item as Record<string, unknown>;
-      const roleValue = (raw.role ?? raw.sender ?? raw.type ?? '').toString().toLowerCase();
-      const role = roleValue === 'assistant' || roleValue === 'bot' ? 'assistant' : roleValue === 'user' ? 'user' : null;
-      const content = (raw.content ?? raw.text ?? raw.message ?? '').toString();
+      const backendId = typeof raw.id === 'number' ? raw.id : null;
+      if (!backendId) return null;
 
-      if (!role || !content) return null;
+      const title = String(raw.name ?? 'Conversa');
+      const createdAt = String(raw.created_at ?? new Date().toISOString());
+      const updatedAt = String(raw.last_interaction ?? createdAt);
 
       return {
-        id: (raw.id ?? `${sessionId}-${index}`).toString(),
-        role,
-        content,
-        createdAt: (raw.created_at ?? raw.createdAt ?? fallbackDate).toString(),
-      };
-    })
-    .filter((message): message is ChatMessage => Boolean(message));
-}
-
-function parseHistorySessions(payload: unknown): ChatSession[] {
-  const items = extractHistoryItems(payload);
-
-  return items
-    .map((item) => {
-      const raw = item as Record<string, unknown>;
-      const id = (raw.id ?? raw.chat_id ?? raw.session_id ?? makeId()).toString();
-      const createdAt = (raw.created_at ?? raw.createdAt ?? new Date().toISOString()).toString();
-      const updatedAt = (raw.updated_at ?? raw.updatedAt ?? createdAt).toString();
-      const messages = parseHistoryMessages(raw.messages ?? raw.history ?? raw.items, updatedAt, id);
-      const title =
-        (raw.title ?? raw.subject ?? raw.topic ?? '').toString() ||
-        (messages.find((msg) => msg.role === 'user')?.content ? buildSessionTitle(messages.find((msg) => msg.role === 'user')!.content) : 'Conversa');
-
-      return {
-        id,
+        id: `backend-${backendId}`,
+        backendId,
         title,
         createdAt,
         updatedAt,
-        messages,
+        messages: [],
         latestAnalysis: null,
       };
     })
-    .filter((session) => Boolean(session.id));
+    .filter((s): s is ChatSession => s !== null);
 }
 
 function mergeSessions(localSessions: ChatSession[], remoteSessions: ChatSession[]): ChatSession[] {
@@ -293,16 +258,28 @@ function mergeSessions(localSessions: ChatSession[], remoteSessions: ChatSession
     map.set(session.id, session);
   });
 
-  remoteSessions.forEach((session) => {
-    const current = map.get(session.id);
+  remoteSessions.forEach((remote) => {
+    // Evita duplicata: sessão local já vinculada ao mesmo backendId
+    if (remote.backendId) {
+      const localWithBackend = Array.from(map.values()).find((s) => s.backendId === remote.backendId);
+      if (localWithBackend) {
+        const remoteNewer = new Date(remote.updatedAt).getTime() > new Date(localWithBackend.updatedAt).getTime();
+        if (remoteNewer) {
+          map.set(localWithBackend.id, { ...localWithBackend, title: remote.title, updatedAt: remote.updatedAt });
+        }
+        return;
+      }
+    }
+
+    const current = map.get(remote.id);
     if (!current) {
-      map.set(session.id, session);
+      map.set(remote.id, remote);
       return;
     }
 
     const currentTime = new Date(current.updatedAt).getTime();
-    const incomingTime = new Date(session.updatedAt).getTime();
-    map.set(session.id, incomingTime >= currentTime ? session : current);
+    const incomingTime = new Date(remote.updatedAt).getTime();
+    map.set(remote.id, incomingTime >= currentTime ? remote : current);
   });
 
   return Array.from(map.values()).sort(
@@ -452,6 +429,7 @@ function ChatContent() {
   const [contentIndex, setContentIndex] = useState(0);
   const endRef = useRef<HTMLDivElement | null>(null);
   const activeSessionRef = useRef<string | null>(null);
+  const activeProgressChatRef = useRef<number | null>(null);
 
   useEffect(() => {
     setContentIndex(0);
@@ -537,6 +515,25 @@ function ChatContent() {
   }, [activeSession?.messages.length]);
 
   useEffect(() => {
+    const newBackendId = activeSession?.backendId ?? null;
+    if (!newBackendId || newBackendId === activeProgressChatRef.current) return;
+
+    const prev = activeProgressChatRef.current;
+    activeProgressChatRef.current = newBackendId;
+
+    if (prev) chatPersistenceService.endProgressSession(prev).catch(() => {});
+    chatPersistenceService.startProgressSession(newBackendId).catch(() => {});
+  }, [activeSession?.backendId]);
+
+  useEffect(() => {
+    return () => {
+      if (activeProgressChatRef.current) {
+        chatPersistenceService.endProgressSession(activeProgressChatRef.current).catch(() => {});
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!storageKey) return;
 
@@ -557,7 +554,7 @@ function ChatContent() {
         const data = await response.json().catch(() => null);
         if (!response.ok || !data) return;
 
-        const remoteSessions = parseHistorySessions(data);
+        const remoteSessions = parseBackendHistory(data);
         if (remoteSessions.length === 0) return;
         if (isCancelled) return;
 
@@ -631,28 +628,38 @@ function ChatContent() {
 
   const handleSelectSession = (sessionId: string) => {
     setActiveSessionId(sessionId);
+
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session?.backendId || session.messages.length > 0) return;
+
+    chatPersistenceService.getChatDetails(session.backendId).then((details) => {
+      if (!details?.messages?.length) return;
+      const mapped = details.messages.map((msg, i) => mapBackendMessage(msg, details.id, i));
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, messages: mapped } : s)),
+      );
+    }).catch(() => {});
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    setSessions((prev) => prev.filter((session) => session.id !== sessionId));
+    const session = sessions.find((s) => s.id === sessionId);
+
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
 
     if (activeSessionId === sessionId) {
-      const nextSession = sessions.find((session) => session.id !== sessionId);
+      const nextSession = sessions.find((s) => s.id !== sessionId);
       setActiveSessionId(nextSession?.id ?? null);
     }
 
+    if (!session?.backendId) return;
     if (typeof window === 'undefined') return;
     const token = window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
     if (!token) return;
 
     try {
-      await fetch(`/api/chat/delete?chat_id=${encodeURIComponent(sessionId)}`, {
+      await fetch(`/api/chat/delete?chat_id=${session.backendId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ chat_id: sessionId }),
+        headers: { Authorization: `Bearer ${token}` },
       });
     } catch {
       // ignore remote deletion errors
@@ -673,7 +680,12 @@ function ChatContent() {
     setIsSending(true);
     setInput('');
 
+    const isNewSession = !activeSessionId;
     const sessionId = activeSessionId ?? createSession(question);
+
+    // Resolve backendId: usa o da sessão existente ou cria um chat novo no backend
+    let backendChatId: number | undefined =
+      sessions.find((s) => s.id === sessionId)?.backendId ?? chatIdFromQuery ?? undefined;
 
     const userMessage: ChatMessage = {
       id: makeId(),
@@ -694,6 +706,17 @@ function ChatContent() {
     });
 
     try {
+      // Cria chat no backend na primeira mensagem de uma nova sessão
+      if (isNewSession && !backendChatId) {
+        const backendChat = await chatPersistenceService.createChat(buildSessionTitle(question));
+        if (backendChat?.id) {
+          backendChatId = backendChat.id;
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, backendId: backendChatId } : s)),
+          );
+        }
+      }
+
       const sessionMessages = sessions.find((session) => session.id === sessionId)?.messages ?? [];
       const fullHistory = [...sessionMessages, userMessage]
         .filter((message) => message.content.trim() !== '')
@@ -707,7 +730,7 @@ function ChatContent() {
           messages: fullHistory,
           mode: mode === 'modo_ensino' ? 'ensino' : 'responde',
           content_id: contentIdFromQuery ?? activeContentId,
-          chat_id: chatIdFromQuery,
+          chat_id: backendChatId,
           exam_id: examIdFromQuery,
           question_id: questionIdFromQuery,
         },

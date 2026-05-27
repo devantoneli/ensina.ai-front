@@ -1,6 +1,32 @@
 import api from './api';
 import type { ChatResponse, ChatMessageRequest } from '@/types/chat';
 
+export type BackendChat = {
+  id: number;
+  name: string;
+  mode: string;
+  created_at: string;
+  last_interaction: string;
+  is_active: boolean;
+  last_message: string | null;
+};
+
+export type BackendMessage = {
+  id: number;
+  sender: 'USER' | 'IA';
+  content: string;
+  sent_at: string;
+};
+
+export type BackendChatDetails = BackendChat & {
+  messages: BackendMessage[];
+};
+
+function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem('access_token') || window.localStorage.getItem('auth_token');
+}
+
 type TutorSource = {
   id?: number;
   name?: string;
@@ -30,6 +56,65 @@ type StreamHandlers = {
   }) => void;
   onDelta?: (token: string) => void;
   onDone?: () => void;
+};
+
+export const chatPersistenceService = {
+  async createChat(name: string): Promise<BackendChat | null> {
+    const token = getStoredToken();
+    if (!token) return null;
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mode: 'LIVRE' }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as BackendChat;
+    } catch {
+      return null;
+    }
+  },
+
+  async getChatDetails(chatId: number): Promise<BackendChatDetails | null> {
+    const token = getStoredToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`/api/chats/${chatId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as BackendChatDetails;
+    } catch {
+      return null;
+    }
+  },
+
+  async startProgressSession(chatId: number): Promise<void> {
+    const token = getStoredToken();
+    if (!token) return;
+    try {
+      await fetch(`/api/progress/session/start/${chatId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // não bloqueia o fluxo
+    }
+  },
+
+  async endProgressSession(chatId: number): Promise<void> {
+    const token = getStoredToken();
+    if (!token) return;
+    try {
+      await fetch(`/api/progress/session/end/${chatId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // não bloqueia o fluxo
+    }
+  },
 };
 
 export const chatService = {
