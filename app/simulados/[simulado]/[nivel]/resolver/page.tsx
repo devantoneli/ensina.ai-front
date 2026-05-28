@@ -14,6 +14,12 @@ import '../../../simulados.css';
 
 type OptionLabel = 'A' | 'B' | 'C' | 'D' | 'E';
 
+const NIVEL_TO_DIFFICULTY: Record<string, string> = {
+  facil:   'FÁCIL',
+  medio:   'MÉDIO',
+  dificil: 'DIFÍCIL',
+};
+
 type SimuladoQuestion = {
   id: string;
   statement: string;
@@ -85,7 +91,8 @@ export default function SimuladoResolverPage() {
         );
 
         if (foundExam && isMounted) {
-          const apiQuestions = await simuladoService.getQuestions(foundExam.id);
+          const difficulty = nivel ? NIVEL_TO_DIFFICULTY[safeDecode(nivel).toLowerCase()] : undefined;
+          const apiQuestions = await simuladoService.getQuestions(foundExam.id, difficulty);
           if (apiQuestions && apiQuestions.length > 0) {
             const mappedQuestions: SimuladoQuestion[] = apiQuestions.map((q) => {
               const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];

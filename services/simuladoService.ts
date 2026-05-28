@@ -138,8 +138,9 @@ export const simuladoService = {
     await api.delete(`/exams/${examId}`);
   },
 
-  async getQuestions(examId: string | number): Promise<any[]> {
-    const response = await api.get<any>(`/exams/${examId}/questions`);
+  async getQuestions(examId: string | number, difficulty?: string): Promise<any[]> {
+    const params = difficulty ? { difficulty } : {};
+    const response = await api.get<any>(`/exams/${examId}/questions`, { params });
     const data = response.data;
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.data)) return data.data;

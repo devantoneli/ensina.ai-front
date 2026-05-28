@@ -311,7 +311,7 @@ export default function AdminSources() {
                 <select 
                   className="admin-select"
                   value={formData.source_type}
-                  onChange={e => setFormData({...formData, source_type: e.target.value as SourceType})}
+                  onChange={e => setFormData(prev => ({...prev, source_type: e.target.value as SourceType}))}
                   required
                 >
                   <option value="URL">Página da Web (URL)</option>
@@ -340,12 +340,12 @@ export default function AdminSources() {
               ) : (
                 <div className="admin-form-group">
                   <label className="admin-label">Link (URL)</label>
-                  <input 
-                    type="url" 
-                    className="admin-input" 
+                  <input
+                    type="url"
+                    className="admin-input"
                     placeholder="https://..."
-                    value={formData.archive_url}
-                    onChange={e => setFormData({...formData, archive_url: e.target.value})}
+                    value={formData.archive_url || ''}
+                    onChange={e => setFormData(prev => ({...prev, archive_url: e.target.value}))}
                     required
                   />
                 </div>
@@ -353,24 +353,24 @@ export default function AdminSources() {
 
               <div className="admin-form-group">
                 <label className="admin-label">Nome de Exibição</label>
-                <input 
-                  type="text" 
-                  className="admin-input" 
+                <input
+                  type="text"
+                  className="admin-input"
                   placeholder="Ex: Introdução à Genética"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  value={formData.name || ''}
+                  onChange={e => setFormData(prev => ({...prev, name: e.target.value}))}
                   required
                 />
               </div>
 
               <div className="admin-form-group">
                 <label className="admin-label">Descrição Breve</label>
-                <textarea 
-                  className="admin-input" 
+                <textarea
+                  className="admin-input"
                   rows={2}
                   placeholder="Sobre o que é este documento..."
-                  value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  value={formData.description || ''}
+                  onChange={e => setFormData(prev => ({...prev, description: e.target.value}))}
                 ></textarea>
               </div>
 
@@ -383,7 +383,7 @@ export default function AdminSources() {
                     subLabel: `(${c.slug})`
                   }))}
                   selectedIds={formData.content_ids}
-                  onChange={(ids) => setFormData({...formData, content_ids: ids})}
+                  onChange={(ids) => setFormData(prev => ({...prev, content_ids: ids}))}
                   placeholder="Buscar conteúdos..."
                 />
                 <p className="mt-1 text-xs text-[#64748b]">Selecione os conteúdos onde esta fonte será usada como base de conhecimento.</p>
@@ -394,7 +394,7 @@ export default function AdminSources() {
                   type="checkbox" 
                   id="is_validated"
                   checked={formData.is_validated}
-                  onChange={e => setFormData({...formData, is_validated: e.target.checked})}
+                  onChange={e => setFormData(prev => ({...prev, is_validated: e.target.checked}))}
                   className="h-5 w-5 cursor-pointer accent-[#138ecc]"
                 />
                 <div>
