@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { getSimuladoKeysStorageKey } from '@/utils/simuladoStorage';
+import { simuladoService } from '@/services/simuladoService';
+import { adminService } from '@/services/adminService';
 import '../../simulados.css';
+
+const NIVEL_TO_DIFFICULTY: Record<string, string> = {
+  facil:   'FÁCIL',
+  medio:   'MÉDIO',
+  dificil: 'DIFÍCIL',
+};
 
 function safeDecode(value: string): string {
   try {
@@ -68,6 +76,47 @@ export default function SimuladoDetalhePage() {
     }
   }, [simuladoCompletionKey]);
 
+  const [coveredContents, setCoveredContents] = useState<string[]>([]);
+  const [contentsLoading, setContentsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadContents = async () => {
+      try {
+        setContentsLoading(true);
+        const examsList = await simuladoService.list();
+        const foundExam = examsList.find(
+          (e) => e.titulo.toLowerCase().trim() === titulo.toLowerCase().trim()
+        );
+
+        if (foundExam && isMounted) {
+          const difficulty = nivel ? NIVEL_TO_DIFFICULTY[safeDecode(nivel).toLowerCase()] : undefined;
+          const apiQuestions = await simuladoService.getQuestions(foundExam.id, difficulty);
+          
+          if (apiQuestions && apiQuestions.length > 0) {
+            const contentIds = Array.from(new Set(apiQuestions.map(q => q.content_id).filter(Boolean)));
+            const allContents = await adminService.getContents();
+            
+            const matchedContents = contentIds.map(id => {
+              const c = allContents.find(content => content.id === id);
+              return c ? c.name : `Conteúdo #${id}`;
+            });
+            
+            if (isMounted) {
+              setCoveredContents(matchedContents);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao buscar conteúdos:', err);
+      } finally {
+        if (isMounted) setContentsLoading(false);
+      }
+    };
+    loadContents();
+    return () => { isMounted = false; };
+  }, [titulo, nivel]);
+
   const handleIniciar = () => {
     router.push(`/simulados/${encodeURIComponent(titulo)}/${encodeURIComponent(nivel ?? 'medio')}/resolver`);
   };
@@ -108,9 +157,22 @@ export default function SimuladoDetalhePage() {
             </article>
           </div>
 
-          <p className="simulado-detail-description">
-            Esta tela apresenta os dados do simulado antes do início. O cálculo de acertos e pontuação é responsabilidade do backend.
-          </p>
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+            <h3 className="mb-3 text-[16px] font-semibold text-[#1f2937]">Conteúdos abordados</h3>
+            {contentsLoading ? (
+              <p className="text-[14px] text-[#9aa9bb]">Verificando questões...</p>
+            ) : coveredContents.length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {coveredContents.map((c, i) => (
+                  <li key={i} className="rounded-full border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1.5 text-[13px] font-medium text-[#475569]">
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[14px] text-[#9aa9bb]">Nenhum conteúdo específico associado.</p>
+            )}
+          </div>
 
           <footer className="simulado-detail-footer">
             <p>
