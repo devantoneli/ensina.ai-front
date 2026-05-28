@@ -54,7 +54,9 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
   }, [subjectQ]);
 
   useEffect(() => {
-    if (!selectedSubject) { setContents([]); return; }
+    if (!selectedSubject) {
+      return;
+    }
     if (contentTimer.current) clearTimeout(contentTimer.current);
     contentTimer.current = setTimeout(async () => {
       setContentsLoading(true);

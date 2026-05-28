@@ -1,6 +1,6 @@
 import api from './api';
-import { ApiResponse } from '@/types/auth';
 import { Simulado } from '@/types/simulados';
+import type { Question } from '@/services/questionService';
 
 type SimuladoApiItem = Partial<{
   id: string | number;
@@ -138,13 +138,13 @@ export const simuladoService = {
     await api.delete(`/exams/${examId}`);
   },
 
-  async getQuestions(examId: string | number): Promise<any[]> {
-    const response = await api.get<any>(`/exams/${examId}/questions`);
+  async getQuestions(examId: string | number): Promise<Question[]> {
+    const response = await api.get<unknown>(`/exams/${examId}/questions`);
     const data = response.data;
-    if (Array.isArray(data)) return data;
-    if (data && Array.isArray(data.data)) return data.data;
-    if (data && Array.isArray(data.questions)) return data.questions;
-    if (data && Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data)) return data as Question[];
+    if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) return (data as { data: Question[] }).data;
+    if (data && typeof data === 'object' && Array.isArray((data as { questions?: unknown }).questions)) return (data as { questions: Question[] }).questions;
+    if (data && typeof data === 'object' && Array.isArray((data as { items?: unknown }).items)) return (data as { items: Question[] }).items;
     return [];
   },
 };

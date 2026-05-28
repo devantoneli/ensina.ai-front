@@ -1067,10 +1067,10 @@ function ChatContent() {
                       ) : null}
 
                       <div
-                        className={`max-w-[80%] rounded-[22px] px-5 py-4 shadow-[0_8px_18px_rgba(34,67,111,0.12)] ${
+                        className={`max-w-[85%] rounded-[22px] px-5 py-4 ${
                           message.role === 'user'
-                            ? 'bg-[#2f90e5] text-white'
-                            : 'border border-white/80 bg-white text-[#1f2937]'
+                            ? 'bg-[#2f90e5] text-white shadow-[0_8px_18px_rgba(34,67,111,0.12)]'
+                            : 'bg-[#f1f5f9] text-[#1f2937]'
                         }`}
                       >
                         {message.role === 'assistant' && index === 0 && assistantMetaTitle ? (

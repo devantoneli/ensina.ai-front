@@ -9,6 +9,34 @@ type Term = {
   explanation: string;
 };
 
+function BookOpenIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="tutor-term-icon">
+      <path
+        d="M12 7.5v11.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12.5 6.5h5.75a1.75 1.75 0 0 1 1.75 1.75v10.5a1.25 1.25 0 0 1-1.84 1.11l-5.11-2.56a1.5 1.5 0 0 0-1.34 0l-5.11 2.56a1.25 1.25 0 0 1-1.84-1.11V8.25A1.75 1.75 0 0 1 7.5 6.5h5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11.5 6.5H6.25A1.75 1.75 0 0 0 4.5 8.25v10.5a1.25 1.25 0 0 0 1.84 1.11l5.16-2.58"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 type TutorMarkdownProps = {
   children: string;
   className?: string;
@@ -32,7 +60,10 @@ function extractTerms(content: string): { markdown: string; terms: Term[] } {
 function TermPopover({ term, explanation }: Term) {
   return (
     <details className="tutor-term">
-      <summary className="tutor-term-trigger">{term}</summary>
+      <summary className="tutor-term-trigger">
+        <BookOpenIcon />
+        <span>{term}</span>
+      </summary>
       <div className="tutor-term-popover">
         <p className="tutor-term-title">{term}</p>
         <p className="tutor-term-explanation">{explanation}</p>
@@ -112,7 +143,15 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
         <h4 {...props}>{processChildren(nodeChildren, terms)}</h4>
       ),
       p: ({ children: nodeChildren, ...props }: React.ComponentProps<'p'>) => (
-        <div {...(props as any)} className={`tutor-p ${props.className || ''}`}>{processChildren(nodeChildren, terms)}</div>
+        <p {...props} className={`tutor-p ${props.className || ''}`.trim()}>
+          {processChildren(nodeChildren, terms)}
+        </p>
+      ),
+      ul: ({ children: nodeChildren, ...props }: React.ComponentProps<'ul'>) => (
+        <ul {...props}>{processChildren(nodeChildren, terms)}</ul>
+      ),
+      ol: ({ children: nodeChildren, ...props }: React.ComponentProps<'ol'>) => (
+        <ol {...props}>{processChildren(nodeChildren, terms)}</ol>
       ),
       li: ({ children: nodeChildren, ...props }: React.ComponentProps<'li'>) => (
         <li {...props}>{processChildren(nodeChildren, terms)}</li>
@@ -126,6 +165,7 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
       blockquote: ({ children: nodeChildren, ...props }: React.ComponentProps<'blockquote'>) => (
         <blockquote {...props}>{processChildren(nodeChildren, terms)}</blockquote>
       ),
+      hr: (props: React.ComponentProps<'hr'>) => <hr {...props} />,
       a: ({ children: nodeChildren, href, ...props }: React.ComponentProps<'a'>) => (
         <a {...props} href={href} target="_blank" rel="noreferrer">
           {processChildren(nodeChildren, terms)}
@@ -171,6 +211,7 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
       td: ({ children: nodeChildren, ...props }: React.ComponentProps<'td'>) => (
         <td {...props}>{processChildren(nodeChildren, terms)}</td>
       ),
+      input: (props: React.ComponentProps<'input'>) => <input {...props} />,
     }),
     [terms],
   );

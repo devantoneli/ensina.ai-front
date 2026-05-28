@@ -17,12 +17,11 @@ interface UseProgressResult {
 
 export function useProgress(): UseProgressResult {
   const [dashboard, setDashboard] = useState<ProgressDashboard | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => authService.isAuthenticated());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
-      setIsLoading(false);
       return;
     }
 

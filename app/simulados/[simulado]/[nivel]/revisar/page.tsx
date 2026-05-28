@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { simuladoService } from '@/services/simuladoService';
+import type { Question } from '@/services/questionService';
 import { getSimuladoAnswersStorageKey } from '@/utils/simuladoStorage';
 import '../../../simulados.css';
 
@@ -72,7 +73,7 @@ export default function SimuladoRevisarPage() {
 
     const loadQuestionsAndAnswers = async () => {
       let tempQuestions: SimuladoQuestion[] = [];
-      let tempCorrectAnswers: Record<string, OptionLabel> = {};
+      const tempCorrectAnswers: Record<string, OptionLabel> = {};
       let usedRealQuestions = false;
 
       try {
@@ -84,12 +85,12 @@ export default function SimuladoRevisarPage() {
         if (foundExam && isMounted) {
           const apiQuestions = await simuladoService.getQuestions(foundExam.id);
           if (apiQuestions && apiQuestions.length > 0) {
-            tempQuestions = apiQuestions.map((q) => {
+            tempQuestions = apiQuestions.map((q: Question) => {
               const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
               return {
                 id: String(q.id),
                 statement: q.description,
-                options: q.alternatives.slice(0, 5).map((alt: any, altIdx: number) => ({
+                options: q.alternatives.slice(0, 5).map((alt, altIdx) => ({
                   label: labels[altIdx] || 'A',
                   text: alt.description
                 }))
@@ -98,7 +99,7 @@ export default function SimuladoRevisarPage() {
 
             apiQuestions.forEach((q) => {
               const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt: any) => alt.is_correct);
+              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt) => alt.is_correct);
               tempCorrectAnswers[String(q.id)] = labels[correctIdx >= 0 ? correctIdx : 0];
             });
 

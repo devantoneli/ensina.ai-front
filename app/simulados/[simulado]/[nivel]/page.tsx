@@ -57,15 +57,14 @@ export default function SimuladoDetalhePage() {
     try {
       if (typeof window === 'undefined') return;
       const raw = window.localStorage.getItem(getSimuladoKeysStorageKey());
-      if (!raw) {
-        setHasCompletedBefore(false);
-        return;
-      }
-
-      const keys = JSON.parse(raw) as string[];
-      setHasCompletedBefore(Array.isArray(keys) && keys.includes(simuladoCompletionKey));
+      const keys = raw ? (JSON.parse(raw) as string[]) : [];
+      queueMicrotask(() => {
+        setHasCompletedBefore(Array.isArray(keys) && keys.includes(simuladoCompletionKey));
+      });
     } catch {
-      setHasCompletedBefore(false);
+      queueMicrotask(() => {
+        setHasCompletedBefore(false);
+      });
     }
   }, [simuladoCompletionKey]);
 

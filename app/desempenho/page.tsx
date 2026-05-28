@@ -5,6 +5,8 @@ import ChatSidebar from '@/components/chat/ChatSidebar';
 import { useProgress } from '@/hooks/useProgress';
 import { simuladoService } from '@/services/simuladoService';
 import { adminService } from '@/services/adminService';
+import type { Question } from '@/services/questionService';
+import type { ProgressDashboard, TopicAccuracy } from '@/services/progressService';
 import { getSimuladoKeysStorageKey, getSimuladoResultStorageKey } from '@/utils/simuladoStorage';
 import './desempenho.css';
 
@@ -79,7 +81,7 @@ function formatPtDate(value?: string | null): string {
 
 export default function DesempenhoPage() {
   const { dashboard: backendDashboard, isLoading: isBackendLoading } = useProgress();
-  const [combinedDashboard, setCombinedDashboard] = useState<any>(null);
+  const [combinedDashboard, setCombinedDashboard] = useState<ProgressDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [simuladoMateriaTotals, setSimuladoMateriaTotals] = useState<Array<{ label: string; value: number }>>([]);
 
@@ -168,8 +170,8 @@ export default function DesempenhoPage() {
             return;
           }
 
-          questions.forEach((question: any) => {
-            const rawContentId = question?.content_id ?? question?.contentId ?? question?.content?.id;
+          questions.forEach((question: Question & { contentId?: number; content?: { id?: number } }) => {
+            const rawContentId = question.content_id ?? question.contentId ?? question.content?.id;
             const contentId = typeof rawContentId === 'number' ? rawContentId : Number(rawContentId);
             const disciplina = Number.isFinite(contentId)
               ? contentToDiscipline.get(contentId)
@@ -184,8 +186,13 @@ export default function DesempenhoPage() {
           .filter((item) => item.value > 0);
         setSimuladoMateriaTotals(materiaTotals);
 
-        const db = backendDashboard
-          ? JSON.parse(JSON.stringify(backendDashboard))
+        const db: ProgressDashboard = backendDashboard
+          ? {
+              study_time: { ...backendDashboard.study_time },
+              accuracy: { ...backendDashboard.accuracy, by_topic: [...backendDashboard.accuracy.by_topic] },
+              studied_contents: [...backendDashboard.studied_contents],
+              weak_topics: [...backendDashboard.weak_topics],
+            }
           : {
               study_time: { total_messages: 0, total_sessions: 0, last_studied_at: null },
               accuracy: { total: 0, correct: 0, wrong: 0, accuracy_pct: 0, by_topic: [] },
@@ -196,9 +203,9 @@ export default function DesempenhoPage() {
         db.study_time.total_sessions += completedKeys.length;
 
         const backendTopics = db.accuracy.by_topic || [];
-        const mergedTopicsMap: Record<string, { topic: string; correct: number; wrong: number; total: number }> = {};
+        const mergedTopicsMap: Record<string, TopicAccuracy> = {};
 
-        backendTopics.forEach((t: any) => {
+        backendTopics.forEach((t) => {
           mergedTopicsMap[t.topic] = {
             topic: t.topic,
             correct: t.correct,
@@ -262,10 +269,10 @@ export default function DesempenhoPage() {
   const dashboard = combinedDashboard;
   const accuracy     = dashboard?.accuracy;
   const studyTime    = dashboard?.study_time;
-  const byTopic      = accuracy?.by_topic ?? [];
+  const byTopic: TopicAccuracy[] = accuracy?.by_topic ?? [];
   const weakTopics   = dashboard?.weak_topics ?? [];
   const bestTopic    = byTopic.length
-    ? byTopic.reduce((a, b: any) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
+    ? byTopic.reduce((a, b) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
     : null;
   const lastStudiedLabel = formatPtDate(studyTime?.last_studied_at ?? null);
 
@@ -393,7 +400,7 @@ export default function DesempenhoPage() {
                 ) : (
                   <>
                     <div className="desempenho-bar-chart">
-                      {byTopic.map((t: any) => (
+                      {byTopic.map((t) => (
                         <div className="desempenho-bar-row" key={t.topic}>
                           <span className="desempenho-bar-label">{t.topic}</span>
 

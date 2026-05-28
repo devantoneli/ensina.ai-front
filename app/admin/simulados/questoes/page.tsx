@@ -182,7 +182,7 @@ export default function AdminQuestoes() {
       
       handleCloseModal();
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao salvar:', error);
       alert('Não foi possível salvar a questão. Tente novamente.');
     }
