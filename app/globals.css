@@ -33,50 +33,74 @@ body {
 
 .tutor-prose {
   color: #1f2937;
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   line-height: 1.8;
 }
 
+/* Espaçamento padrão entre blocos */
 .tutor-prose > * + * {
-  margin-top: 0.95rem;
+  margin-top: 1rem;
 }
 
+/* Mais espaço antes de headings para separar seções */
+.tutor-prose h1,
+.tutor-prose h2,
+.tutor-prose h3,
+.tutor-prose h4 {
+  margin-top: 0;
+}
+
+.tutor-prose * + h2,
+.tutor-prose * + h3,
+.tutor-prose * + h4 {
+  margin-top: 1.6rem;
+}
+
+/* H1: título principal grande */
 .tutor-prose h1 {
-  margin: 0;
-  padding-bottom: 0.55rem;
-  border-bottom: 2px solid rgba(47, 144, 229, 0.28);
-  background: linear-gradient(90deg, #1f2937 0%, #2f90e5 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-size: 1.7rem;
-  line-height: 1.2;
-  font-weight: 800;
+  margin-bottom: 0.4rem;
+  color: #138ecc;
+  font-size: 1.4rem;
+  line-height: 1.25;
+  font-weight: 700;
 }
 
+/* H2: título de seção em teal — "Como funciona a crase?" */
 .tutor-prose h2 {
-  position: relative;
-  margin: 0;
-  padding-left: 0.9rem;
-  font-size: 1.3rem;
+  margin-bottom: 0.25rem;
+  color: #138ecc;
+  font-size: 1.15rem;
   line-height: 1.3;
   font-weight: 700;
 }
 
-.tutor-prose h2::before {
+/* H3: sub-seção numerada com barra azul lateral — "| 1. Regras de quando usar" */
+.tutor-prose h3 {
+  position: relative;
+  margin-bottom: 0.2rem;
+  padding-left: 0.85rem;
+  color: #1f2937;
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.tutor-prose h3::before {
   content: '';
   position: absolute;
   left: 0;
   top: 0.1em;
   width: 4px;
-  height: 1.05em;
+  height: 1em;
   border-radius: 999px;
   background: #2f90e5;
 }
 
-.tutor-prose h3 {
-  margin: 0;
-  font-size: 1.05rem;
+/* H4: destaque verde-teal — "Exemplo de Prova" */
+.tutor-prose h4 {
+  margin-bottom: 0.2rem;
+  color: #0d9488;
+  font-size: 0.97rem;
   line-height: 1.35;
   font-weight: 700;
 }
@@ -86,18 +110,37 @@ body {
   margin: 0;
 }
 
+/* Parágrafos consecutivos têm espaçamento menor entre si */
+.tutor-prose .tutor-p + .tutor-p {
+  margin-top: 0.65rem;
+}
+
+/* Bold: azul-marinho, não muito saturado */
 .tutor-prose strong {
-  color: #2f90e5;
+  color: #1d6db5;
   font-weight: 700;
 }
 
+/* Blockquote: callout azul-claro — "Dica do EnemTutor" */
 .tutor-prose blockquote {
   margin: 0;
-  border-left: 4px solid #f59e0b;
-  border-radius: 0 14px 14px 0;
-  background: rgba(245, 158, 11, 0.08);
-  padding: 0.85rem 1rem;
-  color: #334155;
+  border-left: 4px solid #138ecc;
+  border-radius: 0 12px 12px 0;
+  background: rgba(19, 142, 204, 0.07);
+  padding: 1rem 1.1rem;
+  color: #374151;
+  font-style: italic;
+  line-height: 1.7;
+}
+
+.tutor-prose blockquote strong {
+  color: #0d7aad;
+  font-style: normal;
+}
+
+/* Espaço interno entre elementos do blockquote */
+.tutor-prose blockquote > * + * {
+  margin-top: 0.5rem;
 }
 
 .tutor-prose code:not(.tutor-code-block code) {
@@ -126,21 +169,43 @@ body {
 .tutor-prose ul,
 .tutor-prose ol {
   margin: 0;
-  padding-left: 1.3rem;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .tutor-prose li {
   position: relative;
+  line-height: 1.7;
+}
+
+/* Listas aninhadas */
+.tutor-prose li ul,
+.tutor-prose li ol {
+  margin-top: 0.4rem;
 }
 
 .tutor-prose ul li::marker {
   color: #2f90e5;
+  font-size: 0.9em;
 }
 
+.tutor-prose ol li::marker {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* Links: azul com sublinhado sutil */
 .tutor-prose a {
-  color: #64748b;
+  color: #2563eb;
   text-decoration: underline;
   text-underline-offset: 2px;
+  text-decoration-color: rgba(37, 99, 235, 0.35);
+}
+
+.tutor-prose a:hover {
+  text-decoration-color: #2563eb;
 }
 
 .tutor-table-wrap {

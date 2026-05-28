@@ -108,6 +108,9 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
       h3: ({ children: nodeChildren, ...props }: React.ComponentProps<'h3'>) => (
         <h3 {...props}>{processChildren(nodeChildren, terms)}</h3>
       ),
+      h4: ({ children: nodeChildren, ...props }: React.ComponentProps<'h4'>) => (
+        <h4 {...props}>{processChildren(nodeChildren, terms)}</h4>
+      ),
       p: ({ children: nodeChildren, ...props }: React.ComponentProps<'p'>) => (
         <div {...(props as any)} className={`tutor-p ${props.className || ''}`}>{processChildren(nodeChildren, terms)}</div>
       ),

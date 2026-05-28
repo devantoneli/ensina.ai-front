@@ -54,8 +54,6 @@ export async function POST(req: NextRequest) {
     exam_id: body.exam_id,
     question_id: body.question_id,
   };
-  console.log('[chat/route] payload →', JSON.stringify(requestBody));
-
   try {
     const backendResponse = await fetch(endpoint, {
       method: 'POST',
@@ -66,7 +64,6 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(requestBody),
       cache: 'no-store',
     });
-    console.log('[chat/route] backend status →', backendResponse.status, backendResponse.headers.get('content-type'));
 
     const contentType = backendResponse.headers.get('content-type') ?? '';
 
