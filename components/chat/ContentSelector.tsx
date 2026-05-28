@@ -77,18 +77,7 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
   return (
     <div className="mx-auto w-full max-w-[680px] px-2">
       {/* Busca de disciplinas */}
-      <div className="relative mb-4">
-        <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9aa9bb]" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-        </svg>
-        <input
-          type="text"
-          value={subjectQ}
-          onChange={(e) => setSubjectQ(e.target.value)}
-          placeholder="Buscar disciplina..."
-          className="w-full rounded-2xl border border-white/80 bg-white py-3 pl-10 pr-4 text-sm text-[#1f2937] shadow-[0_8px_18px_rgba(34,67,111,0.1)] outline-none focus:border-[#2f90e5]/40 placeholder:text-[#9aa9bb]"
-        />
-      </div>
+
 
       {/* Cards de disciplinas */}
       {subjectsLoading ? (
@@ -127,20 +116,7 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
       {/* Conteúdos da disciplina selecionada */}
       {selectedSubject && (
         <div className="mt-6">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="relative flex-1">
-              <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9aa9bb]" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-              </svg>
-              <input
-                type="text"
-                value={contentQ}
-                onChange={(e) => setContentQ(e.target.value)}
-                placeholder={`Buscar em ${selectedSubject.name}...`}
-                className="w-full rounded-xl border border-white/80 bg-white py-2 pl-9 pr-3 text-sm text-[#1f2937] shadow-[0_4px_12px_rgba(34,67,111,0.08)] outline-none focus:border-[#2f90e5]/40 placeholder:text-[#9aa9bb]"
-              />
-            </div>
-          </div>
+          <hr className="mb-5 border-t border-[#e2e8f0]" />
 
           {contentsLoading ? (
             <div className="flex justify-center py-6">

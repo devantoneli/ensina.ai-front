@@ -823,9 +823,10 @@ function ChatContent() {
 
       // content_id + chat_id together scope Modo Ensina to the selected content.
       // Chat Responde sends neither — the backend answers freely without scope.
+      const fallbackContentId = teachingContent ? Number(teachingContent.id) : undefined;
       const resolvedContentId =
         mode === 'modo_ensino'
-          ? (activeSession?.contentId ?? contentIdFromQuery ?? activeContentId) || undefined
+          ? (activeSession?.contentId ?? contentIdFromQuery ?? activeContentId ?? fallbackContentId) || undefined
           : undefined;
 
       const resolvedChatId =
