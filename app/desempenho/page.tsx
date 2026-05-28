@@ -270,9 +270,15 @@ export default function DesempenhoPage() {
   const accuracy     = dashboard?.accuracy;
   const studyTime    = dashboard?.study_time;
   const byTopic: TopicAccuracy[] = accuracy?.by_topic ?? [];
-  const weakTopics   = dashboard?.weak_topics ?? [];
-  const bestTopic    = byTopic.length
-    ? byTopic.reduce((a, b) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
+  const topicsForDisplay = byTopic.filter((topic) => {
+    const name = typeof topic.topic === 'string' ? topic.topic.trim() : '';
+    return name !== '' && Number.isFinite(topic.accuracy_pct);
+  });
+  const weakTopics = [...topicsForDisplay]
+    .filter((topic) => topic.accuracy_pct < 70)
+    .sort((a, b) => a.accuracy_pct - b.accuracy_pct);
+  const bestTopic = topicsForDisplay.length
+    ? topicsForDisplay.reduce((a, b) => (a.accuracy_pct >= b.accuracy_pct ? a : b))
     : null;
   const lastStudiedLabel = formatPtDate(studyTime?.last_studied_at ?? null);
 
@@ -319,9 +325,9 @@ export default function DesempenhoPage() {
   if (recs.length === 0 && !isLoading) {
     recs.push({
       type: 'yellow',
-      icon: '💬',
-      title: 'Comece a interagir',
-      text: 'Responda questões no chat para receber recomendações personalizadas.',
+      icon: '🧭',
+      title: 'Sem dados de desempenho',
+      text: 'Realize um simulado para receber recomendações.',
     });
   }
 
@@ -393,14 +399,14 @@ export default function DesempenhoPage() {
               <div className="desempenho-card">
                 <h2 className="desempenho-card-title">Desempenho por Tópico</h2>
 
-                {byTopic.length === 0 ? (
+                {topicsForDisplay.length === 0 ? (
                   <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
-                    Nenhum tópico registrado ainda. Responda questões no chat!
+                    Nenhum tópico registrado ainda. Responda questões no simulado!
                   </p>
                 ) : (
                   <>
                     <div className="desempenho-bar-chart">
-                      {byTopic.map((t) => (
+                      {topicsForDisplay.map((t) => (
                         <div className="desempenho-bar-row" key={t.topic}>
                           <span className="desempenho-bar-label">{t.topic}</span>
 
