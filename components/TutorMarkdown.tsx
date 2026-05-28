@@ -9,6 +9,11 @@ type Term = {
   explanation: string;
 };
 
+type Cite = {
+  source: string;
+  url?: string;
+};
+
 function BookOpenIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="tutor-term-icon">
@@ -40,21 +45,36 @@ function BookOpenIcon() {
 type TutorMarkdownProps = {
   children: string;
   className?: string;
+  sources?: Array<{ name?: string; url?: string }>;
 };
 
 const TERM_PATTERN = /\[\[([^|\]]+)\|([^\]]+)\]\]/g;
+const CITE_PATTERN = /\[cite:\s*['"]([^'"]+)['"]\]/g;
 const PLACEHOLDER_PATTERN = /⁣TERM(\d+)⁣/g;
+const CITE_PLACEHOLDER_PATTERN = /⁣CITE(\d+)⁣/g;
 
-function extractTerms(content: string): { markdown: string; terms: Term[] } {
+function extractTerms(
+  content: string,
+  sources?: Array<{ name?: string; url?: string }>,
+): { markdown: string; terms: Term[]; cites: Cite[] } {
   const terms: Term[] = [];
+  const cites: Cite[] = [];
 
-  const markdown = content.replace(TERM_PATTERN, (_match, term: string, explanation: string) => {
+  let markdown = content.replace(TERM_PATTERN, (_match, term: string, explanation: string) => {
     const index = terms.length;
     terms.push({ term: term.trim(), explanation: explanation.trim() });
     return `⁣TERM${index}⁣`;
   });
 
-  return { markdown, terms };
+  markdown = markdown.replace(CITE_PATTERN, (_match, source: string) => {
+    const index = cites.length;
+    const name = source.trim();
+    const matched = sources?.find((s) => s.name?.toLowerCase() === name.toLowerCase());
+    cites.push({ source: name, url: matched?.url });
+    return `⁣CITE${index}⁣`;
+  });
+
+  return { markdown, terms, cites };
 }
 
 function TermPopover({ term, explanation }: Term) {
@@ -72,23 +92,49 @@ function TermPopover({ term, explanation }: Term) {
   );
 }
 
-function renderPlaceholderText(text: string, terms: Term[]) {
+function CiteBadge({ source, url }: Cite) {
+  const inner = (
+    <>
+      <span className="tutor-cite-prefix">Fonte</span>
+      <span className="tutor-cite-name">{source}</span>
+    </>
+  );
+  if (url) {
+    return (
+      <a className="tutor-cite tutor-cite--link" href={url} target="_blank" rel="noreferrer" title={`Fonte: ${source}`}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <span className="tutor-cite" title={`Fonte: ${source}`}>
+      {inner}
+    </span>
+  );
+}
+
+function renderPlaceholderText(text: string, terms: Term[], cites: Cite[]) {
+  const combined = /⁣TERM(\d+)⁣|⁣CITE(\d+)⁣/g;
   const nodes: Array<string | React.ReactElement> = [];
   let lastIndex = 0;
 
-  for (const match of text.matchAll(PLACEHOLDER_PATTERN)) {
+  for (const match of text.matchAll(combined)) {
     const index = match.index ?? 0;
 
     if (index > lastIndex) {
       nodes.push(text.slice(lastIndex, index));
     }
 
-    const termIndex = Number(match[1]);
-    const term = terms[termIndex];
-    if (term) {
-      nodes.push(<TermPopover key={`${term.term}-${index}`} {...term} />);
-    } else {
-      nodes.push(match[0]);
+    if (match[1] !== undefined) {
+      const term = terms[Number(match[1])];
+      nodes.push(term
+        ? <TermPopover key={`term-${index}`} {...term} />
+        : match[0]);
+    } else if (match[2] !== undefined) {
+      const cite = cites[Number(match[2])];
+      nodes.push(cite
+        ? <CiteBadge key={`cite-${index}`} {...cite} />
+        : match[0]);
     }
 
     lastIndex = index + match[0].length;
@@ -101,10 +147,10 @@ function renderPlaceholderText(text: string, terms: Term[]) {
   return nodes;
 }
 
-function processChildren(children: React.ReactNode, terms: Term[]): React.ReactNode {
+function processChildren(children: React.ReactNode, terms: Term[], cites: Cite[]): React.ReactNode {
   return Children.toArray(children).flatMap((child, childIndex) => {
     if (typeof child === 'string') {
-      return renderPlaceholderText(child, terms);
+      return renderPlaceholderText(child, terms, cites);
     }
 
     if (typeof child === 'number') {
@@ -116,7 +162,7 @@ function processChildren(children: React.ReactNode, terms: Term[]): React.ReactN
       if (childProps.children !== undefined) {
         return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
           key: child.key ?? childIndex,
-          children: processChildren(childProps.children as React.ReactNode, terms),
+          children: processChildren(childProps.children as React.ReactNode, terms, cites),
         });
       }
     }
@@ -125,67 +171,60 @@ function processChildren(children: React.ReactNode, terms: Term[]): React.ReactN
   });
 }
 
-export default function TutorMarkdown({ children, className = '' }: TutorMarkdownProps) {
-  const { markdown, terms } = useMemo(() => extractTerms(children), [children]);
+export default function TutorMarkdown({ children, className = '', sources }: TutorMarkdownProps) {
+  const { markdown, terms, cites } = useMemo(() => extractTerms(children, sources), [children, sources]);
 
   const components = useMemo(
     () => ({
       h1: ({ children: nodeChildren, ...props }: React.ComponentProps<'h1'>) => (
-        <h1 {...props}>{processChildren(nodeChildren, terms)}</h1>
+        <h1 {...props}>{processChildren(nodeChildren, terms, cites)}</h1>
       ),
       h2: ({ children: nodeChildren, ...props }: React.ComponentProps<'h2'>) => (
-        <h2 {...props}>{processChildren(nodeChildren, terms)}</h2>
+        <h2 {...props}>{processChildren(nodeChildren, terms, cites)}</h2>
       ),
       h3: ({ children: nodeChildren, ...props }: React.ComponentProps<'h3'>) => (
-        <h3 {...props}>{processChildren(nodeChildren, terms)}</h3>
+        <h3 {...props}>{processChildren(nodeChildren, terms, cites)}</h3>
       ),
       h4: ({ children: nodeChildren, ...props }: React.ComponentProps<'h4'>) => (
-        <h4 {...props}>{processChildren(nodeChildren, terms)}</h4>
+        <h4 {...props}>{processChildren(nodeChildren, terms, cites)}</h4>
       ),
       p: ({ children: nodeChildren, ref, ...props }: React.ComponentProps<'p'>) => {
-        // Render block-level div instead of p to avoid hydration errors when nesting details/summary.
-        // The .tutor-p class ensures it retains paragraph styling.
         const { ...divProps } = props as any;
         return (
           <div {...divProps} className={`tutor-p ${props.className || ''}`.trim()}>
-            {processChildren(nodeChildren, terms)}
+            {processChildren(nodeChildren, terms, cites)}
           </div>
         );
       },
       ul: ({ children: nodeChildren, ...props }: React.ComponentProps<'ul'>) => (
-        <ul {...props}>{processChildren(nodeChildren, terms)}</ul>
+        <ul {...props}>{processChildren(nodeChildren, terms, cites)}</ul>
       ),
       ol: ({ children: nodeChildren, ...props }: React.ComponentProps<'ol'>) => (
-        <ol {...props}>{processChildren(nodeChildren, terms)}</ol>
+        <ol {...props}>{processChildren(nodeChildren, terms, cites)}</ol>
       ),
       li: ({ children: nodeChildren, ...props }: React.ComponentProps<'li'>) => (
-        <li {...props}>{processChildren(nodeChildren, terms)}</li>
+        <li {...props}>{processChildren(nodeChildren, terms, cites)}</li>
       ),
       strong: ({ children: nodeChildren, ...props }: React.ComponentProps<'strong'>) => (
-        <strong {...props}>{processChildren(nodeChildren, terms)}</strong>
+        <strong {...props}>{processChildren(nodeChildren, terms, cites)}</strong>
       ),
       em: ({ children: nodeChildren, ...props }: React.ComponentProps<'em'>) => (
-        <em {...props}>{processChildren(nodeChildren, terms)}</em>
+        <em {...props}>{processChildren(nodeChildren, terms, cites)}</em>
       ),
       blockquote: ({ children: nodeChildren, ...props }: React.ComponentProps<'blockquote'>) => (
-        <blockquote {...props}>{processChildren(nodeChildren, terms)}</blockquote>
+        <blockquote {...props}>{processChildren(nodeChildren, terms, cites)}</blockquote>
       ),
       hr: (props: React.ComponentProps<'hr'>) => <hr {...props} />,
       a: ({ children: nodeChildren, href, ...props }: React.ComponentProps<'a'>) => (
         <a {...props} href={href} target="_blank" rel="noreferrer">
-          {processChildren(nodeChildren, terms)}
+          {processChildren(nodeChildren, terms, cites)}
         </a>
       ),
-      // Block code styling lives here; `code` below handles only the inner element.
       pre: ({ children: nodeChildren, ...props }: React.ComponentProps<'pre'>) => (
         <pre {...props} className="tutor-code-block">{nodeChildren}</pre>
       ),
       code: ({ children: nodeChildren, inline, className: codeClassName, ...props }: React.ComponentProps<'code'> & { inline?: boolean }) => {
-        const content = processChildren(nodeChildren, terms);
-
-        // react-markdown v7 passes inline=false for block code; v8+ omits it entirely.
-        // When inline is explicitly false, wrap in <pre> (v7 compat path).
-        // Otherwise render as bare <code> — block code is already wrapped by the `pre` component.
+        const content = processChildren(nodeChildren, terms, cites);
         if (inline === false) {
           return (
             <pre className="tutor-code-block">
@@ -193,32 +232,31 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
             </pre>
           );
         }
-
         return <code {...props} className={codeClassName}>{content}</code>;
       },
       table: ({ children: nodeChildren, ...props }: React.ComponentProps<'table'>) => (
         <div className="tutor-table-wrap">
-          <table {...props}>{processChildren(nodeChildren, terms)}</table>
+          <table {...props}>{processChildren(nodeChildren, terms, cites)}</table>
         </div>
       ),
       thead: ({ children: nodeChildren, ...props }: React.ComponentProps<'thead'>) => (
-        <thead {...props}>{processChildren(nodeChildren, terms)}</thead>
+        <thead {...props}>{processChildren(nodeChildren, terms, cites)}</thead>
       ),
       tbody: ({ children: nodeChildren, ...props }: React.ComponentProps<'tbody'>) => (
-        <tbody {...props}>{processChildren(nodeChildren, terms)}</tbody>
+        <tbody {...props}>{processChildren(nodeChildren, terms, cites)}</tbody>
       ),
       tr: ({ children: nodeChildren, ...props }: React.ComponentProps<'tr'>) => (
-        <tr {...props}>{processChildren(nodeChildren, terms)}</tr>
+        <tr {...props}>{processChildren(nodeChildren, terms, cites)}</tr>
       ),
       th: ({ children: nodeChildren, ...props }: React.ComponentProps<'th'>) => (
-        <th {...props}>{processChildren(nodeChildren, terms)}</th>
+        <th {...props}>{processChildren(nodeChildren, terms, cites)}</th>
       ),
       td: ({ children: nodeChildren, ...props }: React.ComponentProps<'td'>) => (
-        <td {...props}>{processChildren(nodeChildren, terms)}</td>
+        <td {...props}>{processChildren(nodeChildren, terms, cites)}</td>
       ),
       input: (props: React.ComponentProps<'input'>) => <input {...props} />,
     }),
-    [terms],
+    [terms, cites],
   );
 
   return (

@@ -696,6 +696,10 @@ function ChatContent() {
     if (newMode === 'chat_responde') {
       setTeachingContent(null);
       setTeachingSubject(null);
+      // Tutor sessions have content associations in the backend — reusing their
+      // chat_id in responde mode causes scope resolution to fail.
+      setActiveSessionId(null);
+      setInput('');
     }
   };
 
@@ -769,9 +773,14 @@ function ChatContent() {
     const isNewSession = !activeSessionId;
     const sessionId = activeSessionId ?? createSession(question, contentIdFromQuery);
 
-    // Resolve backendId: usa o da sessão existente ou cria um chat novo no backend
-    let backendChatId: number | undefined =
-      sessions.find((s) => s.id === sessionId)?.backendId ?? chatIdFromQuery ?? undefined;
+    // Resolve backendId: in responde mode never reuse a tutor session's backendId
+    // (it has content associations that scope the backend response).
+    const existingSession = sessions.find((s) => s.id === sessionId);
+    const reuseBackendId =
+      mode === 'chat_responde' && existingSession?.contentId
+        ? undefined
+        : existingSession?.backendId;
+    let backendChatId: number | undefined = reuseBackendId ?? chatIdFromQuery ?? undefined;
 
     const userMessage: ChatMessage = {
       id: makeId(),
@@ -811,12 +820,22 @@ function ChatContent() {
           content: message.content,
         }));
 
+      // content_id + chat_id together scope Modo Ensina to the selected content.
+      // Chat Responde sends neither — the backend answers freely without scope.
+      const resolvedContentId =
+        mode === 'modo_ensino'
+          ? (activeSession?.contentId ?? contentIdFromQuery ?? activeContentId) || undefined
+          : undefined;
+
+      const resolvedChatId =
+        mode === 'modo_ensino' ? backendChatId : undefined;
+
       await chatService.streamTutorResponse(
         {
           messages: fullHistory,
           mode: mode === 'modo_ensino' ? 'ensino' : 'responde',
-          content_id: activeSession?.contentId ?? contentIdFromQuery ?? activeContentId,
-          chat_id: backendChatId,
+          content_id: resolvedContentId,
+          chat_id: resolvedChatId,
           exam_id: examIdFromQuery,
           question_id: questionIdFromQuery,
         },
@@ -1115,7 +1134,7 @@ function ChatContent() {
                         )}
 
                         <div className="text-[15px] leading-6 user-bubble-text">
-                          <TutorMarkdown>{message.content}</TutorMarkdown>
+                          <TutorMarkdown sources={message.sources}>{message.content}</TutorMarkdown>
                         </div>
                       </div>
                     </div>
