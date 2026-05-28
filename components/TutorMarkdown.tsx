@@ -142,11 +142,16 @@ export default function TutorMarkdown({ children, className = '' }: TutorMarkdow
       h4: ({ children: nodeChildren, ...props }: React.ComponentProps<'h4'>) => (
         <h4 {...props}>{processChildren(nodeChildren, terms)}</h4>
       ),
-      p: ({ children: nodeChildren, ...props }: React.ComponentProps<'p'>) => (
-        <p {...props} className={`tutor-p ${props.className || ''}`.trim()}>
-          {processChildren(nodeChildren, terms)}
-        </p>
-      ),
+      p: ({ children: nodeChildren, ref, ...props }: React.ComponentProps<'p'>) => {
+        // Render block-level div instead of p to avoid hydration errors when nesting details/summary.
+        // The .tutor-p class ensures it retains paragraph styling.
+        const { ...divProps } = props as any;
+        return (
+          <div {...divProps} className={`tutor-p ${props.className || ''}`.trim()}>
+            {processChildren(nodeChildren, terms)}
+          </div>
+        );
+      },
       ul: ({ children: nodeChildren, ...props }: React.ComponentProps<'ul'>) => (
         <ul {...props}>{processChildren(nodeChildren, terms)}</ul>
       ),

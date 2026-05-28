@@ -85,6 +85,8 @@ type ChatSession = {
   id: string;
   backendId?: number;
   contentId?: number;
+  teachingSubject?: Subject;
+  teachingContent?: ContentItem;
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -116,6 +118,8 @@ function sanitizeSessions(data: unknown): ChatSession[] {
         id: raw.id,
         ...(typeof raw.backendId === 'number' ? { backendId: raw.backendId } : {}),
         ...(typeof raw.contentId === 'number' ? { contentId: raw.contentId } : {}),
+        ...(raw.teachingSubject ? { teachingSubject: raw.teachingSubject } : {}),
+        ...(raw.teachingContent ? { teachingContent: raw.teachingContent } : {}),
         title: raw.title,
         createdAt: raw.createdAt ?? new Date().toISOString(),
         updatedAt: raw.updatedAt ?? raw.createdAt ?? new Date().toISOString(),
@@ -481,7 +485,8 @@ function ChatContent() {
 
       if (shouldStartNewChat) {
         setActiveSessionId(null);
-        setInput('');
+        setTeachingContent(null);
+        setTeachingSubject(null);
       } else if (sessionIdFromQuery) {
         setActiveSessionId(sessionIdFromQuery);
       } else {
@@ -599,13 +604,15 @@ function ChatContent() {
   const assistantMetaSubtitle = activeSession?.latestAnalysis?.classification?.contents?.[0] ?? '';
   const activeContentId = activeSession?.latestAnalysis?.classification?.content_ids?.[contentIndex];
 
-  const createSession = (question: string, contentId?: number): string => {
+  const createSession = (question: string, contentId?: number, subject?: Subject, content?: ContentItem): string => {
     const now = new Date().toISOString();
     const newId = makeId();
 
     const newSession: ChatSession = {
       id: newId,
       ...(contentId !== undefined ? { contentId } : {}),
+      ...(subject ? { teachingSubject: subject } : {}),
+      ...(content ? { teachingContent: content } : {}),
       title: buildSessionTitle(question),
       createdAt: now,
       updatedAt: now,
@@ -639,6 +646,8 @@ function ChatContent() {
 
   const handleSelectSession = (sessionId: string) => {
     setActiveSessionId(sessionId);
+    setTeachingContent(null);
+    setTeachingSubject(null);
 
     const session = sessions.find((s) => s.id === sessionId);
     if (!session?.backendId || session.messages.length > 0) return;
@@ -706,7 +715,7 @@ function ChatContent() {
       return;
     }
 
-    const sessionId = createSession(title, Number.isFinite(numericContentId) ? numericContentId : undefined);
+    const sessionId = createSession(title, Number.isFinite(numericContentId) ? numericContentId : undefined, subject, content);
     setSessions((prev) =>
       prev.map((s) => (s.id === sessionId ? { ...s, backendId: result.chat.id } : s)),
     );
@@ -977,23 +986,23 @@ function ChatContent() {
               </button>
             </header>
 
-            {mode === 'modo_ensino' && teachingContent && teachingSubject && (
+            {mode === 'modo_ensino' && hasMessages && (activeSession?.teachingContent || assistantMetaSubtitle) && (
               <div className="mb-1 flex items-center justify-between gap-3 rounded-2xl border border-[#d0eaff] bg-[#f0f7ff] px-4 py-2.5">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="text-sm leading-none">
-                    {teachingContent.type === 'video' ? '🎥' : teachingContent.type === 'article' ? '📄' : '📖'}
+                    {activeSession?.teachingContent?.type === 'video' ? '🎥' : activeSession?.teachingContent?.type === 'article' ? '📄' : '📖'}
                   </span>
                   <span className="truncate text-sm">
-                    <span className="text-[#6b7280]">{teachingSubject.name} ›</span>{' '}
-                    <span className="font-medium text-[#1f2937]">{teachingContent.title}</span>
+                    <span className="text-[#6b7280]">{activeSession?.teachingSubject?.name || assistantMetaTitle} ›</span>{' '}
+                    <span className="font-medium text-[#1f2937]">{activeSession?.teachingContent?.title || assistantMetaSubtitle}</span>
                   </span>
-                  {teachingContent.difficulty && (
+                  {activeSession?.teachingContent?.difficulty && (
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      teachingContent.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                      teachingContent.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                      activeSession.teachingContent.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                      activeSession.teachingContent.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
                       'bg-amber-100 text-amber-700'
                     }`}>
-                      {teachingContent.difficulty === 'easy' ? 'Fácil' : teachingContent.difficulty === 'hard' ? 'Difícil' : 'Médio'}
+                      {activeSession.teachingContent.difficulty === 'easy' ? 'Fácil' : activeSession.teachingContent.difficulty === 'hard' ? 'Difícil' : 'Médio'}
                     </span>
                   )}
                 </div>
