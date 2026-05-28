@@ -1106,33 +1106,7 @@ function ChatContent() {
                             {assistantMetaSubtitle ? `${assistantMetaTitle} - ${assistantMetaSubtitle}` : assistantMetaTitle}
                           </p>
                         ) : null}
-                        
-                        {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                            {message.sources.map((src, i) => (
-                              <div key={i} style={{ backgroundColor: 'white', border: '1px solid #bae6fd', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '0.85rem', flex: '1 1 auto', minWidth: '200px' }}>
-                                <div style={{ fontWeight: 700, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                                  {src.url ? (
-                                    <a href={src.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#0284c7' }} onMouseOver={e => e.currentTarget.style.textDecoration='underline'} onMouseOut={e => e.currentTarget.style.textDecoration='none'}>{src.name}</a>
-                                  ) : (
-                                    <span>{src.name}</span>
-                                  )}
-                                </div>
-                                {src.contents && src.contents.length > 0 && (
-                                  <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                    {src.contents.map((c, j) => (
-                                      <span key={j} style={{ fontSize: '0.65rem', backgroundColor: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', fontWeight: 600 }}>
-                                        {c.name}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
+                        {/* Fontes gigantes removidas conforme pedido do usuário */}
                         <div className="text-[15px] leading-6 user-bubble-text">
                           <TutorMarkdown sources={message.sources}>{message.content}</TutorMarkdown>
                         </div>
