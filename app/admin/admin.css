@@ -1,6 +1,7 @@
 /* Admin Global Layout */
 .admin-page {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #f0f7fb;
   color: #1e293b;
   font-family: var(--font-geist-sans), Arial, sans-serif;
@@ -8,17 +9,19 @@
 
 .admin-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 /* Sidebar */
 .admin-sidebar {
   width: 260px;
+  flex-shrink: 0;
   background: linear-gradient(180deg, #138ecc 0%, #3c91bc 100%);
   display: flex;
   flex-direction: column;
   box-shadow: 4px 0 16px rgba(19, 142, 204, 0.15);
   z-index: 10;
+  overflow-y: auto;
 }
 
 .admin-sidebar-header {
@@ -101,6 +104,7 @@
   flex-direction: column;
   min-width: 0;
   background: #f4f9fd;
+  overflow-y: auto;
 }
 
 .admin-main-header {

@@ -6,14 +6,36 @@ import { adminService, Content } from '@/services/adminService';
 import { simuladoService } from '@/services/simuladoService';
 import { Simulado } from '@/types/simulados';
 import MultiSelect from '@/components/MultiSelect';
+import AdminAlertModal from '@/components/AdminAlertModal';
 
 const DIFFICULTY_LABELS = ['FÁCIL', 'MÉDIO', 'DIFÍCIL', 'MUITO DIFÍCIL'];
+const DIFF_ORDER: Record<string, number> = { 'FÁCIL': 0, 'MÉDIO': 1, 'DIFÍCIL': 2, 'MUITO DIFÍCIL': 3 };
+
+const SORT_OPTIONS = [
+  { field: 'id',          label: 'ID'          },
+  { field: 'description', label: 'Enunciado'   },
+  { field: 'content',     label: 'Conteúdo'    },
+  { field: 'difficulty',  label: 'Dificuldade' },
+] as const;
+type SortField = typeof SORT_OPTIONS[number]['field'];
 
 export default function AdminQuestoes() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [contents, setContents] = useState<Content[]>([]);
   const [exams, setExams] = useState<Simulado[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Toolbar State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterContentId, setFilterContentId] = useState<number>(0);
+  const [filterDifficulty, setFilterDifficulty] = useState<string>('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('id');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [isSortOpen, setIsSortOpen] = useState(false);
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,12 +75,12 @@ export default function AdminQuestoes() {
         adminService.getContents(),
         simuladoService.list()
       ]);
-      setQuestions(questionsData);
-      setContents(contentsData);
+      setQuestions([...questionsData].sort((a, b) => a.id - b.id));
+      setContents([...contentsData].sort((a, b) => a.id - b.id));
       setExams(examsData);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
-      alert('Erro ao carregar os dados. Verifique a conexão com o servidor.');
+      setAlertModal({ message: 'Erro ao carregar os dados. Verifique a conexão com o servidor.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -70,11 +92,47 @@ export default function AdminQuestoes() {
     return map;
   }, [contents]);
 
+  const contentsSorted = useMemo(
+    () => [...contents].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    [contents]
+  );
+
   const examsMap = useMemo(() => {
     const map = new Map<number, string>();
     exams.forEach(e => map.set(Number(e.id), e.titulo));
     return map;
   }, [exams]);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+    setIsSortOpen(false);
+  };
+
+  const filteredQuestions = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return [...questions]
+      .filter(question => {
+        if (filterContentId !== 0 && question.content_id !== filterContentId) return false;
+        if (filterDifficulty && question.difficulty !== filterDifficulty) return false;
+        if (!q) return true;
+        const contentName = (contentsMap.get(question.content_id) || '').toLowerCase();
+        return (
+          String(question.id).includes(q) ||
+          question.description.toLowerCase().includes(q) ||
+          contentName.includes(q) ||
+          question.difficulty.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        let cmp = 0;
+        if (sortField === 'id')          cmp = a.id - b.id;
+        if (sortField === 'description') cmp = a.description.localeCompare(b.description, 'pt-BR');
+        if (sortField === 'content')     cmp = (contentsMap.get(a.content_id) || '').localeCompare(contentsMap.get(b.content_id) || '', 'pt-BR');
+        if (sortField === 'difficulty')  cmp = (DIFF_ORDER[a.difficulty] ?? 0) - (DIFF_ORDER[b.difficulty] ?? 0);
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+  }, [questions, filterContentId, filterDifficulty, searchQuery, sortField, sortDir, contentsMap]);
 
   const handleOpenModal = (question?: Question) => {
     if (question) {
@@ -137,25 +195,23 @@ export default function AdminQuestoes() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.content_id === 0) {
-      alert('Por favor, selecione um conteúdo.');
+      setAlertModal({ message: 'Por favor, selecione um conteúdo.', type: 'warning' });
       return;
     }
     if (!formData.description.trim()) {
-      alert('Por favor, preencha o enunciado.');
+      setAlertModal({ message: 'Por favor, preencha o enunciado.', type: 'warning' });
       return;
     }
 
-    // Verify alternatives are not empty
     const emptyAlt = formData.alternatives.some(a => !a.description.trim());
     if (emptyAlt) {
-      alert('Por favor, preencha as 5 alternativas.');
+      setAlertModal({ message: 'Por favor, preencha as 5 alternativas.', type: 'warning' });
       return;
     }
 
-    // Verify one correct alternative is checked
     const hasCorrect = formData.alternatives.some(a => a.is_correct);
     if (!hasCorrect) {
-      alert('Por favor, selecione qual alternativa é a correta.');
+      setAlertModal({ message: 'Por favor, selecione qual alternativa é a correta.', type: 'warning' });
       return;
     }
 
@@ -174,17 +230,18 @@ export default function AdminQuestoes() {
 
       if (editingId !== null) {
         await questionService.update(editingId, payload);
-        alert('Questão atualizada com sucesso!');
+        handleCloseModal();
+        setAlertModal({ message: 'Questão atualizada com sucesso!', type: 'success' });
       } else {
         await questionService.create(payload);
-        alert('Questão criada com sucesso!');
+        handleCloseModal();
+        setAlertModal({ message: 'Questão criada com sucesso!', type: 'success' });
       }
-      
-      handleCloseModal();
+
       fetchData();
     } catch (error: unknown) {
       console.error('Erro ao salvar:', error);
-      alert('Não foi possível salvar a questão. Tente novamente.');
+      setAlertModal({ message: 'Não foi possível salvar a questão. Tente novamente.', type: 'error' });
     }
   };
 
@@ -202,7 +259,7 @@ export default function AdminQuestoes() {
       fetchData();
     } catch (error) {
       console.error('Erro ao excluir:', error);
-      alert('Erro ao excluir a questão.');
+      setAlertModal({ message: 'Erro ao excluir a questão.', type: 'error' });
     }
   };
 
@@ -228,15 +285,13 @@ export default function AdminQuestoes() {
   return (
     <>
       <header className="admin-main-header">
-        <div className="flex items-center gap-4">
-          <h2 className="admin-title">Gerenciar Questões</h2>
-        </div>
-        <button 
-          className="admin-btn-primary" 
+        <h2 className="admin-title">Gerenciar Questões</h2>
+        <button
+          className="admin-btn-primary"
           onClick={() => handleOpenModal()}
           disabled={contents.length === 0}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nova Questão
         </button>
       </header>
@@ -249,10 +304,78 @@ export default function AdminQuestoes() {
         )}
 
         <div className="admin-card">
+          {/* Toolbar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" placeholder="Buscar por ID, enunciado, conteúdo, dificuldade..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="admin-input" style={{ paddingLeft: 34, height: 38 }} />
+            </div>
+            <div style={{ position: 'relative' }}>
+              <button type="button" className="admin-btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38 }} onClick={() => setIsFilterOpen(p => !p)}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Filtros
+                {(filterContentId !== 0 || !!filterDifficulty) && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#138ecc', flexShrink: 0 }} />}
+              </button>
+              {isFilterOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setIsFilterOpen(false)} />
+                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#fff', borderRadius: 12, boxShadow: '0 8px 28px rgba(0,0,0,0.13)', border: '1px solid #e2e8f0', padding: 14, minWidth: 230, zIndex: 20 }}>
+                    <p style={{ fontWeight: 700, fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Filtros</p>
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: '0.82rem', color: '#475569', fontWeight: 500, marginBottom: 4 }}>Conteúdo</label>
+                      <select value={filterContentId} onChange={e => setFilterContentId(Number(e.target.value))} className="admin-select" style={{ height: 34 }}>
+                        <option value={0}>Todos</option>
+                        {contentsSorted.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', color: '#475569', fontWeight: 500, marginBottom: 4 }}>Dificuldade</label>
+                      <select value={filterDifficulty} onChange={e => setFilterDifficulty(e.target.value)} className="admin-select" style={{ height: 34 }}>
+                        <option value="">Todas</option>
+                        {DIFFICULTY_LABELS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    {(filterContentId !== 0 || !!filterDifficulty) && (
+                      <button type="button" onClick={() => { setFilterContentId(0); setFilterDifficulty(''); }} style={{ marginTop: 10, fontSize: '0.82rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>
+                        Limpar filtros
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ position: 'relative' }}>
+              <button type="button" className="admin-btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38 }} onClick={() => setIsSortOpen(p => !p)}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
+                Ordenar
+              </button>
+              {isSortOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setIsSortOpen(false)} />
+                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#fff', borderRadius: 12, boxShadow: '0 8px 28px rgba(0,0,0,0.13)', border: '1px solid #e2e8f0', padding: 6, minWidth: 180, zIndex: 20 }}>
+                    <p style={{ fontWeight: 700, fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 10px 8px' }}>Ordenar por</p>
+                    {SORT_OPTIONS.map(opt => (
+                      <button key={opt.field} type="button" onClick={() => toggleSort(opt.field)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '7px 10px', border: 'none', background: sortField === opt.field ? '#f0f9ff' : 'transparent', color: sortField === opt.field ? '#138ecc' : '#475569', borderRadius: 8, cursor: 'pointer', fontSize: '0.88rem', fontWeight: sortField === opt.field ? 600 : 400 }}>
+                        {opt.label}
+                        {sortField === opt.field && (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            {sortDir === 'asc' ? <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></> : <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>}
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="py-12 text-center text-[#64748b]">Carregando questões...</div>
           ) : questions.length === 0 ? (
             <div className="py-12 text-center text-[#64748b]">Nenhuma questão cadastrada ainda.</div>
+          ) : filteredQuestions.length === 0 ? (
+            <div className="py-12 text-center text-[#64748b]">Nenhuma questão encontrada com os filtros selecionados.</div>
           ) : (
             <div className="admin-table-container">
               <table className="admin-table">
@@ -266,7 +389,7 @@ export default function AdminQuestoes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {questions.map(q => (
+                  {filteredQuestions.map(q => (
                     <tr key={q.id}>
                       <td>#{q.id}</td>
                       <td>
@@ -329,6 +452,14 @@ export default function AdminQuestoes() {
         </div>
       </div>
 
+      {alertModal && (
+        <AdminAlertModal
+          message={alertModal.message}
+          type={alertModal.type}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
+
       {/* Creation / Edition Modal */}
       {isModalOpen && (
         <div className="admin-modal-overlay" onClick={handleCloseModal}>
@@ -352,7 +483,7 @@ export default function AdminQuestoes() {
                     required
                   >
                     <option value={0} disabled>Selecione um conteúdo...</option>
-                    {contents.map(c => (
+                    {contentsSorted.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -468,7 +599,7 @@ export default function AdminQuestoes() {
         <div className="admin-modal-overlay" onClick={() => setIsPreviewOpen(false)}>
           <div 
             className="admin-modal" 
-            style={{ maxWidth: '600px', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ maxWidth: '820px', padding: '32px', maxHeight: '90vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#e2e8f0]">

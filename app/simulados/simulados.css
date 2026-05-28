@@ -902,6 +902,7 @@ select {
   color: #3d5676;
   font-size: 14px;
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .simulado-option-grid {
