@@ -29,6 +29,7 @@ export default function AdminContents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDisciplineId, setFilterDisciplineId] = useState<number>(0);
   const [filterStatus, setFilterStatus] = useState<'' | 'active' | 'inactive'>('');
+  const [filterHasSources, setFilterHasSources] = useState<'' | 'yes' | 'no'>('');
   const [sortField, setSortField] = useState<SortField>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -65,7 +66,7 @@ export default function AdminContents() {
     return map;
   }, [disciplines]);
 
-  const hasActiveFilters = filterDisciplineId !== 0 || filterStatus !== '';
+  const hasActiveFilters = filterDisciplineId !== 0 || filterStatus !== '' || filterHasSources !== '';
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -74,6 +75,8 @@ export default function AdminContents() {
         if (filterDisciplineId !== 0 && c.discipline_id !== filterDisciplineId) return false;
         if (filterStatus === 'active' && !c.is_active) return false;
         if (filterStatus === 'inactive' && c.is_active) return false;
+        if (filterHasSources === 'yes' && !(contentSourcesMap.get(c.id)?.length)) return false;
+        if (filterHasSources === 'no' && (contentSourcesMap.get(c.id)?.length || 0) > 0) return false;
         if (!q) return true;
         const discName = (disciplinesMap.get(c.discipline_id) || '').toLowerCase();
         return (
@@ -91,7 +94,7 @@ export default function AdminContents() {
         if (sortField === 'status')     cmp = Number(b.is_active) - Number(a.is_active);
         return sortDir === 'asc' ? cmp : -cmp;
       });
-  }, [contents, searchQuery, filterDisciplineId, filterStatus, sortField, sortDir, disciplinesMap]);
+  }, [contents, searchQuery, filterDisciplineId, filterStatus, filterHasSources, sortField, sortDir, disciplinesMap, contentSourcesMap]);
 
   const handleOpenModal = (content?: Content) => {
     if (content) {
@@ -200,7 +203,7 @@ export default function AdminContents() {
                         {[...disciplines].sort((a,b) => a.name.localeCompare(b.name,'pt-BR')).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </div>
-                    <div>
+                    <div style={{ marginBottom: 12 }}>
                       <label style={{ display: 'block', fontSize: '0.82rem', color: '#475569', fontWeight: 500, marginBottom: 4 }}>Status</label>
                       <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="admin-select">
                         <option value="">Todos</option>
@@ -208,8 +211,16 @@ export default function AdminContents() {
                         <option value="inactive">Inativo</option>
                       </select>
                     </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', color: '#475569', fontWeight: 500, marginBottom: 4 }}>Fontes</label>
+                      <select value={filterHasSources} onChange={e => setFilterHasSources(e.target.value as any)} className="admin-select">
+                        <option value="">Todas</option>
+                        <option value="yes">Com fontes</option>
+                        <option value="no">Sem fontes</option>
+                      </select>
+                    </div>
                     {hasActiveFilters && (
-                      <button type="button" onClick={() => { setFilterDisciplineId(0); setFilterStatus(''); }} style={{ marginTop: 12, fontSize: '0.82rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Limpar filtros</button>
+                      <button type="button" onClick={() => { setFilterDisciplineId(0); setFilterStatus(''); setFilterHasSources(''); }} style={{ marginTop: 12, fontSize: '0.82rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Limpar filtros</button>
                     )}
                   </div>
                 </>

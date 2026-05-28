@@ -587,7 +587,6 @@ export default function ConfigPage() {
 
   const menuItems: Array<{ id: ConfigSection; label: string; icon: React.ReactNode }> = [
     { id: 'profile', label: 'Dados do Perfil', icon: <ProfileIcon /> },
-    { id: 'notifications', label: 'Notificações', icon: <NotificationIcon /> },
     { id: 'security', label: 'Segurança', icon: <SecurityIcon /> },
     { id: 'appearance', label: 'Aparência', icon: <AppearanceIcon /> },
     { id: 'privacy', label: 'Privacidade (LGPD)', icon: <PrivacyIcon /> },
@@ -628,31 +627,6 @@ export default function ConfigPage() {
                 <h2 className="config-section-title">Dados do Perfil</h2>
                 <p className="config-section-subtitle">Atualize suas informações pessoais</p>
 
-                <div className="config-avatar-section">
-                  <div className="config-avatar">
-                    {profile.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={profile.avatar} alt="Avatar" />
-                    ) : getProfileInitial(profile.name) ? (
-                      <span className="config-avatar-initials">{getProfileInitial(profile.name)}</span>
-                    ) : (
-                      <UserAvatarIcon />
-                    )}
-                  </div>
-                  <label htmlFor="avatar-upload" className="config-upload-button">
-                    <span>{isUploadingAvatar ? 'Enviando...' : 'Alterar foto'}</span>
-                    <input
-                      id="avatar-upload"
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleAvatarUpload}
-                      disabled={isUploadingAvatar}
-                    />
-                  </label>
-                  <p className="config-upload-hint">JPG, PNG ou GIF. Máx 2MB</p>
-                  {avatarUploadError && <p className="config-upload-error">{avatarUploadError}</p>}
-                </div>
 
                 <div className="config-form">
                   <div className="config-form-row">
@@ -720,49 +694,6 @@ export default function ConfigPage() {
               </div>
             )}
 
-            {activeSection === 'notifications' && (
-              <div className="config-section">
-                <h2 className="config-section-title">Notificações</h2>
-                <p className="config-section-subtitle">Controle como você recebe notificações</p>
-
-                <div className="config-option">
-                  <div className="config-option-header">
-                    <h3>Notificações por email</h3>
-                    <input
-                      type="checkbox"
-                      checked={preferences.notificationsEmail}
-                      onChange={() => handlePreferenceToggle('notificationsEmail')}
-                    />
-                  </div>
-                  <p>Receba notificações sobre suas atividades e progresso</p>
-                </div>
-
-                <div className="config-option">
-                  <div className="config-option-header">
-                    <h3>Atualizações de conteúdo</h3>
-                    <input
-                      type="checkbox"
-                      checked={preferences.notificationsContentUpdates}
-                      onChange={() => handlePreferenceToggle('notificationsContentUpdates')}
-                    />
-                  </div>
-                  <p>Seja notificado quando novo conteúdo for adicionado às suas áreas de interesse</p>
-                </div>
-
-                <div className="config-option">
-                  <div className="config-option-header">
-                    <h3>Lembretes de estudo</h3>
-                    <input
-                      type="checkbox"
-                      checked={preferences.notificationsStudyReminders}
-                      onChange={() => handlePreferenceToggle('notificationsStudyReminders')}
-                    />
-                  </div>
-                  <p>Receba lembretes para manter sua sequência de estudos</p>
-                </div>
-              </div>
-            )}
-
             {activeSection === 'security' && (
               <div className="config-section">
                 <h2 className="config-section-title">Segurança</h2>
@@ -814,16 +745,6 @@ export default function ConfigPage() {
                 <h2 className="config-section-title">Aparência</h2>
                 <p className="config-section-subtitle">Personalize a interface de acordo com suas preferências</p>
 
-                <div className="config-option">
-                  <div className="config-option-header">
-                    <h3>Tema</h3>
-                  </div>
-                  <select className="config-select">
-                    <option>Claro (padrão)</option>
-                    <option>Escuro</option>
-                    <option>Automático</option>
-                  </select>
-                </div>
 
                 <div className="config-option">
                   <div className="config-option-header">
