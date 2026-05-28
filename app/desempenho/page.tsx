@@ -123,8 +123,9 @@ export default function DesempenhoPage() {
           simulatedTotal += result.total;
 
           const [titlePart] = key.split('::');
+          const decodedTitle = decodeURIComponent(titlePart.trim()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
           const matchedExam = examsList.find(
-            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === titlePart.trim()
+            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === decodedTitle
           );
           const topic = matchedExam ? matchedExam.materia : 'Simulados';
 
@@ -140,8 +141,9 @@ export default function DesempenhoPage() {
         const completedExams = new Map<string, { id: string; materia?: string; questoes?: number }>();
         completedKeys.forEach((key) => {
           const [titlePart] = key.split('::');
+          const decodedTitle = decodeURIComponent(titlePart.trim()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
           const matchedExam = examsList.find(
-            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === titlePart.trim()
+            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === decodedTitle
           );
           if (matchedExam) {
             completedExams.set(matchedExam.id, matchedExam);
@@ -189,9 +191,9 @@ export default function DesempenhoPage() {
         const db: ProgressDashboard = backendDashboard
           ? {
               study_time: { ...backendDashboard.study_time },
-              accuracy: { ...backendDashboard.accuracy, by_topic: [...backendDashboard.accuracy.by_topic] },
-              studied_contents: [...backendDashboard.studied_contents],
-              weak_topics: [...backendDashboard.weak_topics],
+              accuracy: { ...backendDashboard.accuracy, by_topic: [...(backendDashboard.accuracy?.by_topic || [])] },
+              studied_contents: [...(backendDashboard.studied_contents || [])],
+              weak_topics: [...(backendDashboard.weak_topics || [])],
             }
           : {
               study_time: { total_messages: 0, total_sessions: 0, last_studied_at: null },

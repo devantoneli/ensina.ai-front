@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { Simulado } from '@/types/simulados';
 import { simuladoService } from '@/services/simuladoService';
+import { getSimuladoKeysStorageKey } from '@/utils/simuladoStorage';
 import './simulados.css';
 
 type NivelFiltro = 'Todos' | 'Fácil' | 'Médio' | 'Difícil';
@@ -248,11 +249,11 @@ export default function SimuladosPage() {
     setIsFilterModalOpen(false);
   };
 
-  // Ler simulados concluídos do localStorage (id array) no mount
+  // Ler simulados concluídos do localStorage no mount
   useEffect(() => {
     try {
       if (typeof window === 'undefined') return;
-      const raw = window.localStorage.getItem('completed_simulados');
+      const raw = window.localStorage.getItem(getSimuladoKeysStorageKey());
       if (!raw) return;
       const parsed = JSON.parse(raw) as string[];
       if (Array.isArray(parsed)) setCompletedSimulados(parsed);
@@ -294,6 +295,19 @@ export default function SimuladosPage() {
     [simulados],
   );
 
+  const checkIsCompleted = (simulado: Simulado) => {
+    if (typeof simulado.feito === 'boolean' && simulado.feito === true) return true;
+    const simuladoTitleLower = simulado.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const simuladoNivelLower = simulado.nivel.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    return completedSimulados.some((k) => {
+      const parts = k.split('::');
+      if (parts.length < 2) return false;
+      const decodedTitle = decodeURIComponent(parts[0].trim()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const decodedNivel = decodeURIComponent(parts[1].trim()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      return decodedTitle === simuladoTitleLower && decodedNivel === simuladoNivelLower;
+    });
+  };
+
   const simuladosFiltrados = useMemo(() => {
     const query = busca.trim().toLowerCase();
 
@@ -316,7 +330,8 @@ export default function SimuladosPage() {
         (filtroQuestoes === 'Ate10' && simulado.questoes <= 10) ||
         (filtroQuestoes === '11-15' && simulado.questoes >= 11 && simulado.questoes <= 15) ||
         (filtroQuestoes === '16+' && simulado.questoes >= 16);
-      const isCompleted = typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id);
+      
+      const isCompleted = checkIsCompleted(simulado);
 
       const matchFeitos =
         filtroFeitos === 'Todos' ||
@@ -328,9 +343,9 @@ export default function SimuladosPage() {
   }, [busca, filtroNivel, filtroMateria, filtroTempo, filtroQuestoes, filtroFeitos, simulados, completedSimulados]);
 
   // Disponibilidade para filtros de status: usa o backend quando vier com `feito`, com fallback local
-  const hasAnyFeito = simulados.some((simulado) => (typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id)));
+  const hasAnyFeito = simulados.some(checkIsCompleted);
 
-  const hasAnyNaoFeito = simulados.some((simulado) => !(typeof simulado.feito === 'boolean' ? simulado.feito : completedSimulados.includes(simulado.id)));
+  const hasAnyNaoFeito = simulados.some((simulado) => !checkIsCompleted(simulado));
 
   const totalFiltrados = simuladosFiltrados.length;
   const totalMaterias = new Set(simuladosFiltrados.map((simulado) => simulado.materia)).size;
