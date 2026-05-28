@@ -108,35 +108,6 @@ export default function DesempenhoPage() {
           console.warn('Nao foi possivel carregar conteudos/disciplinas:', error);
         }
 
-        let simulatedCorrect = 0;
-        let simulatedWrong = 0;
-        let simulatedTotal = 0;
-        const simulatedTopicStats: Record<string, { correct: number; wrong: number; total: number }> = {};
-
-        completedKeys.forEach((key) => {
-          const resultRaw = window.localStorage.getItem(getSimuladoResultStorageKey(key));
-          if (!resultRaw) return;
-
-          const result = JSON.parse(resultRaw) as { correct: number; total: number; percentage: number };
-          simulatedCorrect += result.correct;
-          simulatedWrong += (result.total - result.correct);
-          simulatedTotal += result.total;
-
-          const [titlePart] = key.split('::');
-          const decodedTitle = decodeURIComponent(titlePart.trim()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-          const matchedExam = examsList.find(
-            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === decodedTitle
-          );
-          const topic = matchedExam ? matchedExam.materia : 'Simulados';
-
-          if (!simulatedTopicStats[topic]) {
-            simulatedTopicStats[topic] = { correct: 0, wrong: 0, total: 0 };
-          }
-          simulatedTopicStats[topic].correct += result.correct;
-          simulatedTopicStats[topic].wrong += (result.total - result.correct);
-          simulatedTopicStats[topic].total += result.total;
-        });
-
         // Distribuicao por materia baseada nas questoes do simulado
         const completedExams = new Map<string, { id: string; materia?: string; questoes?: number }>();
         completedKeys.forEach((key) => {
@@ -157,7 +128,9 @@ export default function DesempenhoPage() {
           })
         );
 
+        const examDominantDiscipline = new Map<string, string>();
         const materiaTotalsMap = new Map<string, number>();
+
         examsWithQuestions.forEach(({ exam, questions }) => {
           const fallbackMateria = exam.materia ?? 'Geral';
 
@@ -169,8 +142,11 @@ export default function DesempenhoPage() {
                 (materiaTotalsMap.get(fallbackMateria) ?? 0) + fallbackTotal
               );
             }
+            examDominantDiscipline.set(exam.id, fallbackMateria);
             return;
           }
+
+          const localCounts = new Map<string, number>();
 
           questions.forEach((question: Question & { contentId?: number; content?: { id?: number } }) => {
             const rawContentId = question.content_id ?? question.contentId ?? question.content?.id;
@@ -180,7 +156,49 @@ export default function DesempenhoPage() {
               : undefined;
             const materia = disciplina ?? fallbackMateria;
             materiaTotalsMap.set(materia, (materiaTotalsMap.get(materia) ?? 0) + 1);
+
+            localCounts.set(materia, (localCounts.get(materia) ?? 0) + 1);
           });
+
+          let maxCount = 0;
+          let dominant = fallbackMateria;
+          for (const [mat, count] of localCounts.entries()) {
+            if (count > maxCount) {
+              maxCount = count;
+              dominant = mat;
+            }
+          }
+          examDominantDiscipline.set(exam.id, dominant);
+        });
+
+        let simulatedCorrect = 0;
+        let simulatedWrong = 0;
+        let simulatedTotal = 0;
+        const simulatedTopicStats: Record<string, { correct: number; wrong: number; total: number }> = {};
+
+        completedKeys.forEach((key) => {
+          const resultRaw = window.localStorage.getItem(getSimuladoResultStorageKey(key));
+          if (!resultRaw) return;
+
+          const result = JSON.parse(resultRaw) as { correct: number; total: number; percentage: number };
+          simulatedCorrect += result.correct;
+          simulatedWrong += (result.total - result.correct);
+          simulatedTotal += result.total;
+
+          const [titlePart] = key.split('::');
+          const decodedTitle = decodeURIComponent(titlePart.trim()).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+          const matchedExam = examsList.find(
+            (e) => e.titulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === decodedTitle
+          );
+          
+          const topic = matchedExam ? (examDominantDiscipline.get(matchedExam.id) || matchedExam.materia || 'Simulados') : 'Simulados';
+
+          if (!simulatedTopicStats[topic]) {
+            simulatedTopicStats[topic] = { correct: 0, wrong: 0, total: 0 };
+          }
+          simulatedTopicStats[topic].correct += result.correct;
+          simulatedTopicStats[topic].wrong += (result.total - result.correct);
+          simulatedTopicStats[topic].total += result.total;
         });
 
         const materiaTotals = Array.from(materiaTotalsMap.entries())
