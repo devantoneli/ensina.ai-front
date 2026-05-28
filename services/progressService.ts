@@ -80,6 +80,16 @@ export const progressService = {
   },
 
   /**
+   * Registra o envio de uma mensagem genérica no chat, para contabilizar "mensagens estudadas".
+   */
+  async recordMessage(chatId: number, topic: string): Promise<void> {
+    await api.post('/progress/interaction/message', {
+      chat_id: chatId,
+      topic,
+    });
+  },
+
+  /**
    * Envia a resposta do aluno para avaliação pela IA.
    * Retorna o feedback da IA (acerto/erro + observação).
    */

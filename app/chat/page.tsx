@@ -6,6 +6,7 @@ import ChatSidebar from '@/components/chat/ChatSidebar';
 import TutorMarkdown from '@/components/TutorMarkdown';
 import { chatService, chatPersistenceService } from '@/services/chatService';
 import type { BackendMessage } from '@/services/chatService';
+import { progressService } from '@/services/progressService';
 import { subjectService } from '@/services/subjectService';
 import type { ContentItem, Subject } from '@/services/subjectService';
 import ContentSelector from '@/components/chat/ContentSelector';
@@ -830,6 +831,22 @@ function ChatContent() {
       const resolvedChatId =
         mode === 'modo_ensino' ? backendChatId : undefined;
 
+      // Integração com o Analytics (Mensagens Estudadas)
+      if (backendChatId) {
+        try {
+          // Garante que a sessão tá viva
+          await progressService.startSession(backendChatId);
+          // Incrementa a mensagem
+          if (resolvedContentId) {
+            await progressService.recordContentStudied(backendChatId, resolvedContentId, buildSessionTitle(question));
+          } else {
+            await progressService.recordMessage(backendChatId, buildSessionTitle(question));
+          }
+        } catch (err) {
+          console.warn('Erro silencioso no analytics:', err);
+        }
+      }
+
       await chatService.streamTutorResponse(
         {
           messages: fullHistory,
@@ -1098,7 +1115,9 @@ function ChatContent() {
                   {activeSession?.messages.map((message, index) => (
                     <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
                       {message.role === 'assistant' ? (
-                        <span className="mt-1 h-7 w-7 rounded-full bg-white shadow-[0_6px_12px_rgba(34,67,111,0.12)]" />
+                        <div className="mt-1 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_6px_12px_rgba(34,67,111,0.12)] p-1.5">
+                          <img src="/ensina-ai-icon.png" alt="Ensina AI" className="h-full w-full object-contain" />
+                        </div>
                       ) : null}
 
                       <div

@@ -49,7 +49,7 @@ type TutorMarkdownProps = {
 };
 
 const TERM_PATTERN = /\[\[([^|\]]+)\|([^\]]+)\]\]/g;
-const CITE_PATTERN = /\[cite:\s*['"]([^'"]+)['"]\]/g;
+const CITE_PATTERN = /\[cite:\s*(.+?)\]/g;
 const PLACEHOLDER_PATTERN = /⁣TERM(\d+)⁣/g;
 const CITE_PLACEHOLDER_PATTERN = /⁣CITE(\d+)⁣/g;
 
@@ -66,12 +66,15 @@ function extractTerms(
     return `⁣TERM${index}⁣`;
   });
 
-  markdown = markdown.replace(CITE_PATTERN, (_match, source: string) => {
-    const index = cites.length;
-    const name = source.trim();
-    const matched = sources?.find((s) => s.name?.toLowerCase() === name.toLowerCase());
-    cites.push({ source: name, url: matched?.url });
-    return `⁣CITE${index}⁣`;
+  markdown = markdown.replace(CITE_PATTERN, (_match, sourcesString: string) => {
+    const sourceNames = sourcesString.split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
+    
+    return sourceNames.map(name => {
+      const index = cites.length;
+      const matched = sources?.find((s) => s.name?.toLowerCase() === name.toLowerCase());
+      cites.push({ source: name, url: matched?.url });
+      return `⁣CITE${index}⁣`;
+    }).join(' ');
   });
 
   return { markdown, terms, cites };
