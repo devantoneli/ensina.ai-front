@@ -162,8 +162,11 @@ export const simuladoService = {
     const data = response.data;
     if (Array.isArray(data)) return data as Question[];
     if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) return (data as { data: Question[] }).data;
-    if (data && typeof data === 'object' && Array.isArray((data as { questions?: unknown }).questions)) return (data as { questions: Question[] }).questions;
     if (data && typeof data === 'object' && Array.isArray((data as { items?: unknown }).items)) return (data as { items: Question[] }).items;
     return [];
+  },
+
+  async linkQuestions(examId: string | number, questionIds: number[]): Promise<void> {
+    await api.post(`/exams/${examId}/questions`, { question_ids: questionIds });
   },
 };

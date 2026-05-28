@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { simuladoService } from '@/services/simuladoService';
+import { questionService, Question } from '@/services/questionService';
 import { Simulado } from '@/types/simulados';
 import AdminAlertModal from '@/components/AdminAlertModal';
 
@@ -84,7 +85,13 @@ export default function AdminSimulados() {
     questoes: '',
     tempoEstimado: '',
     materia: '',
+    selectedQuestionIds: [] as number[],
   });
+
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [searchQuestionText, setSearchQuestionText] = useState('');
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
 
   const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
@@ -146,9 +153,16 @@ export default function AdminSimulados() {
     setIsSortOpen(false);
   };
 
-  const handleOpenModal = (simulado?: Simulado) => {
+  const handleOpenModal = async (simulado?: Simulado) => {
     if (simulado) {
       setEditingId(simulado.id);
+      let questionIds: number[] = [];
+      try {
+        const questions = await simuladoService.getQuestions(simulado.id);
+        questionIds = questions.map(q => q.id);
+      } catch(e) {
+        console.error("Erro ao carregar questoes vinculadas", e);
+      }
       setFormData({
         titulo: simulado.titulo,
         descricao: simulado.descricao,
@@ -156,10 +170,11 @@ export default function AdminSimulados() {
         questoes: String(simulado.questoes),
         tempoEstimado: String(simulado.tempoEstimado),
         materia: simulado.materia,
+        selectedQuestionIds: questionIds,
       });
     } else {
       setEditingId(null);
-      setFormData({ titulo: '', descricao: '', nivel: 'Médio', questoes: '', tempoEstimado: '', materia: '' });
+      setFormData({ titulo: '', descricao: '', nivel: 'Médio', questoes: '', tempoEstimado: '', materia: '', selectedQuestionIds: [] });
     }
     setIsModalOpen(true);
   };
@@ -167,8 +182,38 @@ export default function AdminSimulados() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    setFormData({ titulo: '', descricao: '', nivel: 'Médio', questoes: '', tempoEstimado: '', materia: '' });
+    setFormData({ titulo: '', descricao: '', nivel: 'Médio', questoes: '', tempoEstimado: '', materia: '', selectedQuestionIds: [] });
   };
+
+  const handleOpenQuestionModal = async () => {
+    setIsQuestionModalOpen(true);
+    if (allQuestions.length === 0) {
+      setLoadingQuestions(true);
+      try {
+        const questions = await questionService.list();
+        setAllQuestions(questions);
+      } catch (e) {
+        console.error("Erro ao carregar questoes", e);
+      } finally {
+        setLoadingQuestions(false);
+      }
+    }
+  };
+
+  const toggleQuestionSelection = (qId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedQuestionIds: prev.selectedQuestionIds.includes(qId)
+        ? prev.selectedQuestionIds.filter(id => id !== qId)
+        : [...prev.selectedQuestionIds, qId]
+    }));
+  };
+
+  const filteredQuestions = useMemo(() => {
+    const q = searchQuestionText.toLowerCase().trim();
+    if (!q) return allQuestions;
+    return allQuestions.filter(question => question.description.toLowerCase().includes(q));
+  }, [allQuestions, searchQuestionText]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -194,8 +239,12 @@ export default function AdminSimulados() {
       const wasEditing = !!editingId;
       if (editingId) {
         await simuladoService.update(editingId, payload);
+        await simuladoService.linkQuestions(editingId, formData.selectedQuestionIds);
       } else {
-        await simuladoService.create(payload);
+        const created: any = await simuladoService.create(payload);
+        if (created && created.id) {
+          await simuladoService.linkQuestions(created.id, formData.selectedQuestionIds);
+        }
       }
 
       handleCloseModal();
@@ -405,8 +454,11 @@ export default function AdminSimulados() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="admin-form-group">
-                  <label htmlFor="questoes" className="admin-label">Questões vinculadas</label>
-                  <input id="questoes" name="questoes" type="number" value={formData.questoes} className="admin-input" disabled title="O número de questões é gerenciado na página de Questões" />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label htmlFor="questoes" className="admin-label" style={{ marginBottom: 0 }}>Questões vinculadas</label>
+                    <button type="button" onClick={handleOpenQuestionModal} style={{ fontSize: '0.8rem', color: '#138ecc', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Atrelar Questões</button>
+                  </div>
+                  <input id="questoes" name="questoes" type="text" value={`${formData.selectedQuestionIds.length} selecionada(s)`} className="admin-input" disabled />
                 </div>
                 <div className="admin-form-group">
                   <label htmlFor="tempoEstimado" className="admin-label">Tempo Estimado (min) *</label>
@@ -419,6 +471,40 @@ export default function AdminSimulados() {
                 <button type="submit" className="admin-btn-primary">{editingId ? 'Atualizar' : 'Criar'} Simulado</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isQuestionModalOpen && (
+        <div className="admin-modal-overlay" onClick={() => setIsQuestionModalOpen(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '95%' }}>
+            <h3 className="mb-4 text-xl font-bold text-[#1e293b]">Selecionar Questões</h3>
+            <div style={{ marginBottom: '16px' }}>
+              <input type="text" placeholder="Buscar no enunciado..." value={searchQuestionText} onChange={(e) => setSearchQuestionText(e.target.value)} className="admin-input" />
+            </div>
+            <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px' }}>
+              {loadingQuestions ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Carregando questões...</div>
+              ) : filteredQuestions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Nenhuma questão encontrada.</div>
+              ) : (
+                filteredQuestions.map(q => (
+                  <label key={q.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={formData.selectedQuestionIds.includes(q.id)} onChange={() => toggleQuestionSelection(q.id)} style={{ marginTop: '4px' }} />
+                    <div style={{ flex: 1, fontSize: '0.9rem', color: '#334155' }}>
+                      <span style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 600, color: '#138ecc', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px', marginBottom: '4px', marginRight: '6px' }}>{q.difficulty}</span>
+                      {q.description}
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+            <div className="mt-6 flex justify-between items-center">
+              <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>{formData.selectedQuestionIds.length} selecionada(s)</span>
+              <div className="flex gap-3">
+                <button type="button" className="admin-btn-secondary" onClick={() => setIsQuestionModalOpen(false)}>Pronto</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
