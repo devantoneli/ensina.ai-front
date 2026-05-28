@@ -36,7 +36,6 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [contentsLoading, setContentsLoading] = useState(false);
   const [contentQ, setContentQ] = useState('');
-  const [difficulty, setDifficulty] = useState('');
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
 
   const subjectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,19 +61,17 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
       setContentsLoading(true);
       const result = await subjectService.getContents(selectedSubject.id, {
         q: contentQ || undefined,
-        difficulty: difficulty || undefined,
       });
       setContents(result.items);
       setContentsLoading(false);
     }, contentQ ? 300 : 0);
     return () => { if (contentTimer.current) clearTimeout(contentTimer.current); };
-  }, [selectedSubject, contentQ, difficulty]);
+  }, [selectedSubject, contentQ]);
 
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
     setSelectedContent(null);
     setContentQ('');
-    setDifficulty('');
   };
 
   return (
@@ -143,22 +140,6 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
                 className="w-full rounded-xl border border-white/80 bg-white py-2 pl-9 pr-3 text-sm text-[#1f2937] shadow-[0_4px_12px_rgba(34,67,111,0.08)] outline-none focus:border-[#2f90e5]/40 placeholder:text-[#9aa9bb]"
               />
             </div>
-            <div className="flex gap-1">
-              {(['', 'easy', 'medium', 'hard'] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDifficulty(d)}
-                  className={`rounded-xl px-3 py-2 text-xs font-medium transition ${
-                    difficulty === d
-                      ? 'bg-[#138ecc] text-white shadow-[0_4px_10px_rgba(19,142,204,0.25)]'
-                      : 'bg-white text-[#6b7280] shadow-[0_4px_10px_rgba(34,67,111,0.08)] hover:bg-[#e8f4fe]'
-                  }`}
-                >
-                  {d === '' ? 'Todos' : DIFFICULTY_LABELS[d]}
-                </button>
-              ))}
-            </div>
           </div>
 
           {contentsLoading ? (
@@ -167,7 +148,7 @@ export default function ContentSelector({ onSelect, loading = false }: Props) {
             </div>
           ) : contents.length === 0 ? (
             <p className="py-4 text-center text-sm text-[#9aa9bb]">
-              {contentQ || difficulty ? 'Nenhum conteúdo encontrado' : 'Nenhum conteúdo disponível'}
+              {contentQ ? 'Nenhum conteúdo encontrado' : 'Nenhum conteúdo disponível'}
             </p>
           ) : (
             <div className="space-y-2">

@@ -968,9 +968,16 @@ function ChatContent() {
                         </button>
 
                         <div className="flex items-center gap-2 pr-8">
-                          <span className={`h-2.5 w-2.5 rounded-full ${index % 2 === 0 ? 'bg-[#2f90e5]' : 'bg-[#8ec4ff]'}`} />
-                          <div>
-                            <p className="text-[calc(var(--app-root-font-size)*0.8125)] font-semibold text-[#1f2937]">{session.title}</p>
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${index % 2 === 0 ? 'bg-[#2f90e5]' : 'bg-[#8ec4ff]'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="truncate text-[calc(var(--app-root-font-size)*0.8125)] font-semibold text-[#1f2937]">
+                                {session.title}
+                              </p>
+                              <span className={`shrink-0 rounded px-1.5 py-[2px] text-[10px] font-bold uppercase tracking-wider ${Boolean(session.contentId || session.teachingContent) ? 'bg-[#e0f2fe] text-[#0284c7]' : 'bg-[#f1f5f9] text-[#64748b]'}`}>
+                                {Boolean(session.contentId || session.teachingContent) ? 'Ensina' : 'Responde'}
+                              </span>
+                            </div>
                             <p className="text-[calc(var(--app-root-font-size)*0.6875)] text-[#8a9bb2]">{formatPtDate(session.updatedAt)}</p>
                           </div>
                         </div>
@@ -1120,22 +1127,6 @@ function ChatContent() {
 
             {hasMessages ? (
               <footer className="sticky bottom-0 pb-6 flex flex-col items-center gap-3">
-                <div className="user-mode-selector">
-                  <button
-                    type="button"
-                    className={`user-mode-button ${mode === 'chat_responde' ? 'user-mode-button--active' : ''}`}
-                    onClick={() => handleModeChange('chat_responde')}
-                  >
-                    Chat Responde
-                  </button>
-                  <button
-                    type="button"
-                    className={`user-mode-button ${mode === 'modo_ensino' ? 'user-mode-button--active modo-ensina' : ''}`}
-                    onClick={() => handleModeChange('modo_ensino')}
-                  >
-                    Modo Ensina
-                  </button>
-                </div>
                 <form
                   onSubmit={handleSend}
                   className="mx-auto flex w-full max-w-[900px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
