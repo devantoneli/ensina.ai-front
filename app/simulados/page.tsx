@@ -267,7 +267,7 @@ export default function SimuladosPage() {
 
     const loadSimulados = async () => {
       try {
-        const data = await simuladoService.list();
+        const data = await simuladoService.studentList();
 
         if (isMounted && data.length > 0) {
           setSimulados(data);
