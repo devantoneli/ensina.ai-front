@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { adminService, Content, Discipline, KnowledgeSource } from '@/services/adminService';
 import MultiSelect from '@/components/MultiSelect';
+import AdminAlertModal from '@/components/AdminAlertModal';
 
 export default function AdminContents() {
   const [contents, setContents] = useState<Content[]>([]);
@@ -11,6 +12,12 @@ export default function AdminContents() {
   const [contentSourcesMap, setContentSourcesMap] = useState<Map<number, KnowledgeSource[]>>(new Map());
   const [loading, setLoading] = useState(true);
   
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Delete Confirm State
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -51,7 +58,7 @@ export default function AdminContents() {
       setContentSourcesMap(map);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
-      alert('Erro ao carregar dados da página.');
+      setAlertModal({ message: 'Erro ao carregar dados da página.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -99,6 +106,7 @@ export default function AdminContents() {
     if (!formData.name.trim() || !formData.slug.trim() || formData.discipline_id === 0) return;
 
     try {
+      const wasEditing = !!editingId;
       let contentId = editingId;
 
       if (editingId) {
@@ -131,22 +139,28 @@ export default function AdminContents() {
       }
 
       handleCloseModal();
+      setAlertModal({ message: wasEditing ? 'Conteúdo atualizado com sucesso!' : 'Conteúdo criado com sucesso!', type: 'success' });
       fetchData();
     } catch (error) {
       console.error('Erro ao salvar conteúdo:', error);
-      alert('Erro ao salvar conteúdo. Verifique os dados e o slug e tente novamente.');
+      setAlertModal({ message: 'Erro ao salvar conteúdo. Verifique os dados e o slug e tente novamente.', type: 'error' });
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Tem certeza que deseja inativar/excluir este conteúdo?')) return;
-    
+  const handleDelete = (id: number, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await adminService.deleteContent(id);
+      await adminService.deleteContent(deleteConfirm.id);
+      setDeleteConfirm(null);
       fetchData();
     } catch (error) {
       console.error('Erro ao excluir conteúdo:', error);
-      alert('Não foi possível excluir o conteúdo.');
+      setDeleteConfirm(null);
+      setAlertModal({ message: 'Não foi possível excluir o conteúdo.', type: 'error' });
     }
   };
 
@@ -223,7 +237,7 @@ export default function AdminContents() {
                           <button onClick={() => handleOpenModal(content)} className="admin-btn-edit">
                             Editar
                           </button>
-                          <button onClick={() => handleDelete(content.id)} className="admin-btn-danger">
+                          <button onClick={() => handleDelete(content.id, content.name)} className="admin-btn-danger">
                             Excluir
                           </button>
                         </div>
@@ -236,6 +250,32 @@ export default function AdminContents() {
           )}
         </div>
       </div>
+
+      {alertModal && (
+        <AdminAlertModal
+          message={alertModal.message}
+          type={alertModal.type}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
+
+      {deleteConfirm && (
+        <div className="admin-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="admin-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="mb-4 text-xl font-bold text-[#ef4444] flex items-center gap-2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              Confirmar Exclusão
+            </h3>
+            <p className="text-sm text-[#475569] mb-6 leading-relaxed">
+              Você tem certeza de que deseja excluir o conteúdo <strong>"{deleteConfirm.name}"</strong>? Essa ação é irreversível.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button type="button" className="admin-btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancelar</button>
+              <button type="button" className="admin-card-action-btn admin-card-action-btn--delete" style={{ width: 'auto', padding: '0 20px' }} onClick={executeDelete}>Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="admin-modal-overlay">

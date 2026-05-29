@@ -6,6 +6,7 @@ import { adminService, Content } from '@/services/adminService';
 import { simuladoService } from '@/services/simuladoService';
 import { Simulado } from '@/types/simulados';
 import MultiSelect from '@/components/MultiSelect';
+import AdminAlertModal from '@/components/AdminAlertModal';
 
 const DIFFICULTY_LABELS = ['FÁCIL', 'MÉDIO', 'DIFÍCIL', 'MUITO DIFÍCIL'];
 
@@ -14,6 +15,9 @@ export default function AdminQuestoes() {
   const [contents, setContents] = useState<Content[]>([]);
   const [exams, setExams] = useState<Simulado[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,7 +62,7 @@ export default function AdminQuestoes() {
       setExams(examsData);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
-      alert('Erro ao carregar os dados. Verifique a conexão com o servidor.');
+      setAlertModal({ message: 'Erro ao carregar os dados. Verifique a conexão com o servidor.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -137,25 +141,23 @@ export default function AdminQuestoes() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.content_id === 0) {
-      alert('Por favor, selecione um conteúdo.');
+      setAlertModal({ message: 'Por favor, selecione um conteúdo.', type: 'warning' });
       return;
     }
     if (!formData.description.trim()) {
-      alert('Por favor, preencha o enunciado.');
+      setAlertModal({ message: 'Por favor, preencha o enunciado.', type: 'warning' });
       return;
     }
 
-    // Verify alternatives are not empty
     const emptyAlt = formData.alternatives.some(a => !a.description.trim());
     if (emptyAlt) {
-      alert('Por favor, preencha as 5 alternativas.');
+      setAlertModal({ message: 'Por favor, preencha as 5 alternativas.', type: 'warning' });
       return;
     }
 
-    // Verify one correct alternative is checked
     const hasCorrect = formData.alternatives.some(a => a.is_correct);
     if (!hasCorrect) {
-      alert('Por favor, selecione qual alternativa é a correta.');
+      setAlertModal({ message: 'Por favor, selecione qual alternativa é a correta.', type: 'warning' });
       return;
     }
 
@@ -174,17 +176,18 @@ export default function AdminQuestoes() {
 
       if (editingId !== null) {
         await questionService.update(editingId, payload);
-        alert('Questão atualizada com sucesso!');
+        handleCloseModal();
+        setAlertModal({ message: 'Questão atualizada com sucesso!', type: 'success' });
       } else {
         await questionService.create(payload);
-        alert('Questão criada com sucesso!');
+        handleCloseModal();
+        setAlertModal({ message: 'Questão criada com sucesso!', type: 'success' });
       }
-      
-      handleCloseModal();
+
       fetchData();
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
-      alert('Não foi possível salvar a questão. Tente novamente.');
+      setAlertModal({ message: 'Não foi possível salvar a questão. Tente novamente.', type: 'error' });
     }
   };
 
@@ -202,7 +205,7 @@ export default function AdminQuestoes() {
       fetchData();
     } catch (error) {
       console.error('Erro ao excluir:', error);
-      alert('Erro ao excluir a questão.');
+      setAlertModal({ message: 'Erro ao excluir a questão.', type: 'error' });
     }
   };
 
@@ -328,6 +331,14 @@ export default function AdminQuestoes() {
           )}
         </div>
       </div>
+
+      {alertModal && (
+        <AdminAlertModal
+          message={alertModal.message}
+          type={alertModal.type}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
 
       {/* Creation / Edition Modal */}
       {isModalOpen && (

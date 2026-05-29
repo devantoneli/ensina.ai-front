@@ -2,11 +2,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { adminService, Discipline } from '@/services/adminService';
+import AdminAlertModal from '@/components/AdminAlertModal';
 
 export default function AdminDisciplines() {
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Delete Confirm State
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -23,7 +30,7 @@ export default function AdminDisciplines() {
       setDisciplines(data);
     } catch (error) {
       console.error('Erro ao buscar disciplinas:', error);
-      alert('Erro ao buscar disciplinas. Tente novamente.');
+      setAlertModal({ message: 'Erro ao buscar disciplinas. Tente novamente.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -51,28 +58,35 @@ export default function AdminDisciplines() {
     if (!formData.name.trim()) return;
 
     try {
+      const wasEditing = !!editingId;
       if (editingId) {
         await adminService.updateDiscipline(editingId, formData);
       } else {
         await adminService.createDiscipline(formData);
       }
       handleCloseModal();
+      setAlertModal({ message: wasEditing ? 'Disciplina atualizada com sucesso!' : 'Disciplina criada com sucesso!', type: 'success' });
       fetchDisciplines();
     } catch (error) {
       console.error('Erro ao salvar disciplina:', error);
-      alert('Erro ao salvar disciplina. Verifique os dados e tente novamente.');
+      setAlertModal({ message: 'Erro ao salvar disciplina. Verifique os dados e tente novamente.', type: 'error' });
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta disciplina? Essa ação afetará todos os conteúdos ligados a ela.')) return;
-    
+  const handleDelete = (id: number, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await adminService.deleteDiscipline(id);
+      await adminService.deleteDiscipline(deleteConfirm.id);
+      setDeleteConfirm(null);
       fetchDisciplines();
     } catch (error) {
       console.error('Erro ao excluir disciplina:', error);
-      alert('Não foi possível excluir a disciplina. Ela pode estar sendo usada por outros registros.');
+      setDeleteConfirm(null);
+      setAlertModal({ message: 'Não foi possível excluir a disciplina. Ela pode estar sendo usada por outros registros.', type: 'error' });
     }
   };
 
@@ -114,7 +128,7 @@ export default function AdminDisciplines() {
                           <button onClick={() => handleOpenModal(discipline)} className="admin-btn-edit">
                             Editar
                           </button>
-                          <button onClick={() => handleDelete(discipline.id)} className="admin-btn-danger">
+                          <button onClick={() => handleDelete(discipline.id, discipline.name)} className="admin-btn-danger">
                             Excluir
                           </button>
                         </div>
@@ -127,6 +141,32 @@ export default function AdminDisciplines() {
           )}
         </div>
       </div>
+
+      {alertModal && (
+        <AdminAlertModal
+          message={alertModal.message}
+          type={alertModal.type}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
+
+      {deleteConfirm && (
+        <div className="admin-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="admin-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="mb-4 text-xl font-bold text-[#ef4444] flex items-center gap-2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              Confirmar Exclusão
+            </h3>
+            <p className="text-sm text-[#475569] mb-6 leading-relaxed">
+              Você tem certeza de que deseja excluir a disciplina <strong>"{deleteConfirm.name}"</strong>? Essa ação afetará todos os conteúdos ligados a ela.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button type="button" className="admin-btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancelar</button>
+              <button type="button" className="admin-card-action-btn admin-card-action-btn--delete" style={{ width: 'auto', padding: '0 20px' }} onClick={executeDelete}>Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="admin-modal-overlay">

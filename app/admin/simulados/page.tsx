@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { simuladoService } from '@/services/simuladoService';
 import { Simulado } from '@/types/simulados';
+import AdminAlertModal from '@/components/AdminAlertModal';
 
 const NIVEL_TO_DIFFICULTY: Record<string, string> = {
   'Fácil':   'FÁCIL',
@@ -56,6 +57,9 @@ export default function AdminSimulados() {
     materia: '',
   });
 
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -72,7 +76,7 @@ export default function AdminSimulados() {
       setSimulados(data);
     } catch (error) {
       console.error('Erro ao buscar simulados:', error);
-      alert('Erro ao buscar simulados. Tente novamente.');
+      setAlertModal({ message: 'Erro ao buscar simulados. Tente novamente.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -128,7 +132,7 @@ export default function AdminSimulados() {
     e.preventDefault();
 
     if (!formData.titulo.trim()) {
-      alert('Por favor, preencha o título.');
+      setAlertModal({ message: 'Por favor, preencha o título.', type: 'warning' });
       return;
     }
 
@@ -148,8 +152,8 @@ export default function AdminSimulados() {
         await simuladoService.create(payload);
       }
 
-      alert(editingId ? 'Simulado atualizado com sucesso!' : 'Simulado criado com sucesso!');
       handleCloseModal();
+      setAlertModal({ message: editingId ? 'Simulado atualizado com sucesso!' : 'Simulado criado com sucesso!', type: 'success' });
       fetchSimulados();
     } catch (error: any) {
       console.error('Erro completo:', error);
@@ -158,9 +162,9 @@ export default function AdminSimulados() {
       // 422: mostra exatamente quais campos o backend rejeitou
       if (error?.response?.status === 422 && Array.isArray(detail)) {
         const msgs = detail.map((d: any) => `${d.loc?.join('.')}: ${d.msg}`).join('\n');
-        alert(`Dados inválidos:\n${msgs}`);
+        setAlertModal({ message: `Dados inválidos:\n${msgs}`, type: 'error' });
       } else {
-        alert(`Erro: ${detail ?? error?.message ?? 'Tente novamente.'}`);
+        setAlertModal({ message: `Erro: ${detail ?? error?.message ?? 'Tente novamente.'}`, type: 'error' });
       }
     }
   };
@@ -181,7 +185,7 @@ export default function AdminSimulados() {
       fetchSimulados();
     } catch (error) {
       console.error('Erro ao excluir simulado:', error);
-      alert('Não foi possível excluir o simulado.');
+      setAlertModal({ message: 'Não foi possível excluir o simulado.', type: 'error' });
     }
   };
 
@@ -403,6 +407,14 @@ export default function AdminSimulados() {
             </form>
           </div>
         </div>
+      )}
+
+      {alertModal && (
+        <AdminAlertModal
+          message={alertModal.message}
+          type={alertModal.type}
+          onClose={() => setAlertModal(null)}
+        />
       )}
 
       {/* Modal de Confirmação de Exclusão */}

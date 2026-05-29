@@ -3,11 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import { adminService, KnowledgeSource, SourceType, Content } from '@/services/adminService';
 import MultiSelect from '@/components/MultiSelect';
+import AdminAlertModal from '@/components/AdminAlertModal';
 
 export default function AdminSources() {
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Alert Modal State
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Delete Confirm State
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -69,7 +76,7 @@ export default function AdminSources() {
       setSourceContentsMap(map);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
-      alert('Erro ao carregar fontes de conhecimento.');
+      setAlertModal({ message: 'Erro ao carregar fontes de conhecimento.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -124,15 +131,16 @@ export default function AdminSources() {
     if (!formData.name.trim()) return;
 
     if (!editingId && formData.source_type === 'ARCHIVE' && !formData.file) {
-      alert("Por favor, selecione um arquivo para fazer upload.");
-      return;
-    }
-    
-    if (formData.source_type !== 'ARCHIVE' && !formData.archive_url.trim()) {
-      alert("Por favor, preencha o link (URL) da fonte.");
+      setAlertModal({ message: 'Por favor, selecione um arquivo para fazer upload.', type: 'warning' });
       return;
     }
 
+    if (formData.source_type !== 'ARCHIVE' && !formData.archive_url.trim()) {
+      setAlertModal({ message: 'Por favor, preencha o link (URL) da fonte.', type: 'warning' });
+      return;
+    }
+
+    const wasEditing = !!editingId;
     setIsUploading(true);
     try {
       let createdSourceId = editingId;
@@ -190,24 +198,30 @@ export default function AdminSources() {
       }
 
       handleCloseModal();
+      setAlertModal({ message: wasEditing ? 'Fonte atualizada com sucesso!' : 'Fonte adicionada com sucesso!', type: 'success' });
       fetchData();
     } catch (error) {
       console.error('Erro ao criar fonte:', error);
-      alert('Erro ao processar a fonte. Verifique os logs para mais detalhes.');
+      setAlertModal({ message: 'Erro ao processar a fonte. Verifique os logs para mais detalhes.', type: 'error' });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta fonte? Se ela estiver processada pela IA, será removida da base de conhecimento.')) return;
-    
+  const handleDelete = (id: number, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await adminService.deleteKnowledgeSource(id);
+      await adminService.deleteKnowledgeSource(deleteConfirm.id);
+      setDeleteConfirm(null);
       fetchData();
     } catch (error) {
       console.error('Erro ao excluir fonte:', error);
-      alert('Não foi possível excluir a fonte.');
+      setDeleteConfirm(null);
+      setAlertModal({ message: 'Não foi possível excluir a fonte.', type: 'error' });
     }
   };
 
@@ -284,7 +298,7 @@ export default function AdminSources() {
                           <button onClick={() => handleOpenModal(source)} className="admin-btn-edit">
                             Editar
                           </button>
-                          <button onClick={() => handleDelete(source.id)} className="admin-btn-danger">
+                          <button onClick={() => handleDelete(source.id, source.name)} className="admin-btn-danger">
                             Excluir
                           </button>
                         </div>
@@ -297,6 +311,32 @@ export default function AdminSources() {
           )}
         </div>
       </div>
+
+      {alertModal && (
+        <AdminAlertModal
+          message={alertModal.message}
+          type={alertModal.type}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
+
+      {deleteConfirm && (
+        <div className="admin-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="admin-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="mb-4 text-xl font-bold text-[#ef4444] flex items-center gap-2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              Confirmar Exclusão
+            </h3>
+            <p className="text-sm text-[#475569] mb-6 leading-relaxed">
+              Você tem certeza de que deseja excluir a fonte <strong>"{deleteConfirm.name}"</strong>? Se ela estiver processada pela IA, será removida da base de conhecimento.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button type="button" className="admin-btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancelar</button>
+              <button type="button" className="admin-card-action-btn admin-card-action-btn--delete" style={{ width: 'auto', padding: '0 20px' }} onClick={executeDelete}>Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="admin-modal-overlay">
@@ -322,11 +362,11 @@ export default function AdminSources() {
               </div>
 
               {formData.source_type === 'ARCHIVE' ? (
-                <div className="admin-form-group">
+                <div key="archive-group" className="admin-form-group">
                   <label className="admin-label">Arquivo (PDF recomendado)</label>
-                  <input 
-                    type="file" 
-                    className="admin-input" 
+                  <input
+                    type="file"
+                    className="admin-input"
                     onChange={handleFileChange}
                     accept=".pdf,.txt,.docx"
                     required={!editingId}
@@ -338,7 +378,7 @@ export default function AdminSources() {
                   ) : null}
                 </div>
               ) : (
-                <div className="admin-form-group">
+                <div key="url-group" className="admin-form-group">
                   <label className="admin-label">Link (URL)</label>
                   <input
                     type="url"
