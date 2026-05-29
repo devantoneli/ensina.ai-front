@@ -6,6 +6,7 @@ Frontend do projeto ensina.ai, desenvolvido com Next.js.
 
 - Node.js 20.9 ou superior
 - npm 10 ou superior (ou outro gerenciador compativel)
+- Backend da API acessivel (padrao: http://localhost:8000)
 
 Para validar as versoes instaladas:
 
@@ -13,6 +14,17 @@ Para validar as versoes instaladas:
 node -v
 npm -v
 ```
+
+## Configuracao (opcional)
+
+Por padrao, a aplicacao consome a API em http://localhost:8000.
+Para trocar o backend, defina a variavel:
+
+```text
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Voce pode criar um arquivo .env.local na raiz do projeto e adicionar a variavel acima.
 
 ## Instalacao das dependencias
 
