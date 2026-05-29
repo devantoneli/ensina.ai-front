@@ -42,7 +42,7 @@ export default function AdminContents() {
         adminService.getDisciplines(),
         adminService.getKnowledgeSources()
       ]);
-      setContents(contentsData);
+      setContents([...contentsData].sort((a, b) => a.id - b.id));
       setDisciplines(disciplinesData);
       setAllSources(sourcesData);
 

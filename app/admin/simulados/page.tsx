@@ -73,7 +73,7 @@ export default function AdminSimulados() {
     setLoading(true);
     try {
       const data = await simuladoService.list();
-      setSimulados(data);
+      setSimulados([...data].sort((a, b) => Number(a.id) - Number(b.id)));
     } catch (error) {
       console.error('Erro ao buscar simulados:', error);
       setAlertModal({ message: 'Erro ao buscar simulados. Tente novamente.', type: 'error' });

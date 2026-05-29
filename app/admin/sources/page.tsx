@@ -52,7 +52,7 @@ export default function AdminSources() {
         adminService.getKnowledgeSources(),
         adminService.getContents()
       ]);
-      setSources(sourcesData);
+      setSources([...sourcesData].sort((a, b) => a.id - b.id));
       setAllContents(contentsData);
 
       // Buscar os vínculos para mapear

@@ -27,7 +27,7 @@ export default function AdminDisciplines() {
     setLoading(true);
     try {
       const data = await adminService.getDisciplines();
-      setDisciplines(data);
+      setDisciplines([...data].sort((a, b) => a.id - b.id));
     } catch (error) {
       console.error('Erro ao buscar disciplinas:', error);
       setAlertModal({ message: 'Erro ao buscar disciplinas. Tente novamente.', type: 'error' });
