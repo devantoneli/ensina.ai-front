@@ -27,6 +27,7 @@ type SimuladoApiItem = Partial<{
   feito: boolean;
   completed: boolean;
   is_completed: boolean;
+  student_status: string | null;
 }>;
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -67,6 +68,10 @@ function normalizeSimulado(item: SimuladoApiItem): Simulado {
   const tempoEstimado = toNumber(item.tempoEstimado ?? item.estimated_time ?? item.duration_minutes ?? item.time_setting);
   const categoria = item.categoria ?? item.category ?? item.subject ?? 'Geral';
 
+  const feito = item.student_status === 'CONCLUDED'
+    ? true
+    : (item.feito ?? item.completed ?? item.is_completed);
+
   return {
     id: String(item.id ?? crypto.randomUUID()),
     titulo,
@@ -76,7 +81,7 @@ function normalizeSimulado(item: SimuladoApiItem): Simulado {
     tempoEstimado,
     materia: categoria,
     imagem: item.imagem ?? item.image,
-    feito: item.feito ?? item.completed ?? item.is_completed,
+    feito,
   };
 }
 
@@ -116,8 +121,21 @@ export const simuladoService = {
     return extractSimulados(unwrapApiPayload(response.data)).map(normalizeSimulado);
   },
 
+  async studentList(): Promise<Simulado[]> {
+    const response = await api.get<unknown>('/student/exams/');
+    return extractSimulados(unwrapApiPayload(response.data)).map(normalizeSimulado);
+  },
+
   async getById(examId: string | number): Promise<Simulado | null> {
     const response = await api.get<unknown>(`/exams/${examId}`);
+    const payload = unwrapApiPayload(response.data);
+    const extracted = extractSimulados(payload)[0] ?? (payload as SimuladoApiItem);
+
+    return extracted ? normalizeSimulado(extracted) : null;
+  },
+
+  async getStudentExamById(examId: string | number): Promise<Simulado | null> {
+    const response = await api.get<unknown>(`/student/exams/${examId}`);
     const payload = unwrapApiPayload(response.data);
     const extracted = extractSimulados(payload)[0] ?? (payload as SimuladoApiItem);
 

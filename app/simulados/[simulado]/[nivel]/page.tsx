@@ -84,12 +84,13 @@ export default function SimuladoDetalhePage() {
     const loadContents = async () => {
       try {
         setContentsLoading(true);
-        const examsList = await simuladoService.list();
+        const examsList = await simuladoService.studentList();
         const foundExam = examsList.find(
           (e) => e.titulo.toLowerCase().trim() === titulo.toLowerCase().trim()
         );
 
         if (foundExam && isMounted) {
+          setHasCompletedBefore(foundExam.feito === true);
           const difficulty = nivel ? NIVEL_TO_DIFFICULTY[safeDecode(nivel).toLowerCase()] : undefined;
           const apiQuestions = await simuladoService.getQuestions(foundExam.id, difficulty);
           
@@ -188,13 +189,6 @@ export default function SimuladoDetalhePage() {
                 Voltar para simulados
               </button>
 
-              <button
-                type="button"
-                className="simulado-runner-button simulado-runner-button--primary"
-                onClick={handleIniciar}
-              >
-                Iniciar simulado
-              </button>
               {hasCompletedBefore ? (
                 <button
                   type="button"
@@ -203,7 +197,15 @@ export default function SimuladoDetalhePage() {
                 >
                   Refazer simulado
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  className="simulado-runner-button simulado-runner-button--primary"
+                  onClick={handleIniciar}
+                >
+                  Iniciar simulado
+                </button>
+              )}
             </div>
           </footer>
         </section>
