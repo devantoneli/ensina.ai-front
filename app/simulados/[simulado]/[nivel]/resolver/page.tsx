@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChatSidebar from '@/components/chat/ChatSidebar';
 import { simuladoService } from '@/services/simuladoService';
+import type { Question } from '@/services/questionService';
 import {
   getSimuladoAnswersStorageKey,
   getSimuladoCorrectAnswersStorageKey,
@@ -94,12 +95,12 @@ export default function SimuladoResolverPage() {
           const difficulty = nivel ? NIVEL_TO_DIFFICULTY[safeDecode(nivel).toLowerCase()] : undefined;
           const apiQuestions = await simuladoService.getQuestions(foundExam.id, difficulty);
           if (apiQuestions && apiQuestions.length > 0) {
-            const mappedQuestions: SimuladoQuestion[] = apiQuestions.map((q) => {
+            const mappedQuestions: SimuladoQuestion[] = apiQuestions.map((q: Question) => {
               const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
               return {
                 id: String(q.id),
                 statement: q.description,
-                options: q.alternatives.slice(0, 5).map((alt: any, altIdx: number) => ({
+                options: q.alternatives.slice(0, 5).map((alt, altIdx) => ({
                   label: labels[altIdx] || 'A',
                   text: alt.description
                 }))
@@ -109,7 +110,7 @@ export default function SimuladoResolverPage() {
             const correctMap: Record<string, OptionLabel> = {};
             apiQuestions.forEach((q) => {
               const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt: any) => alt.is_correct);
+              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt) => alt.is_correct);
               correctMap[String(q.id)] = labels[correctIdx >= 0 ? correctIdx : 0];
             });
 

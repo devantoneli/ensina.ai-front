@@ -6,6 +6,25 @@ import { simuladoService } from '@/services/simuladoService';
 import { Simulado } from '@/types/simulados';
 import AdminAlertModal from '@/components/AdminAlertModal';
 
+type ApiErrorDetail = {
+  loc?: Array<string | number>;
+  msg?: string;
+};
+
+type ApiError = {
+  response?: {
+    status?: number;
+    data?: {
+      detail?: unknown;
+    };
+  };
+  message?: string;
+};
+
+function isApiErrorDetailArray(detail: unknown): detail is ApiErrorDetail[] {
+  return Array.isArray(detail);
+}
+
 const NIVEL_TO_DIFFICULTY: Record<string, string> = {
   'Fácil':   'FÁCIL',
   'Médio':   'MÉDIO',
@@ -182,13 +201,17 @@ export default function AdminSimulados() {
       handleCloseModal();
       setAlertModal({ message: wasEditing ? 'Simulado atualizado com sucesso!' : 'Simulado criado com sucesso!', type: 'success' });
       fetchSimulados();
-    } catch (error: any) {
-      const detail = error?.response?.data?.detail;
-      if (error?.response?.status === 422 && Array.isArray(detail)) {
-        const msgs = detail.map((d: any) => `${d.loc?.join('.')}: ${d.msg}`).join('\n');
-        setAlertModal({ message: `Dados inválidos:\n${msgs}`, type: 'error' });
+    } catch (error: unknown) {
+      console.error('Erro completo:', error);
+      const apiError = error as ApiError;
+      const detail = apiError.response?.data?.detail;
+
+      // 422: mostra exatamente quais campos o backend rejeitou
+      if (apiError.response?.status === 422 && isApiErrorDetailArray(detail)) {
+        const msgs = detail.map((d) => `${d.loc?.join('.') ?? 'campo'}: ${d.msg ?? 'Valor inválido'}`).join('\n');
+        alert(`Dados inválidos:\n${msgs}`);
       } else {
-        setAlertModal({ message: `Erro: ${detail ?? error?.message ?? 'Tente novamente.'}`, type: 'error' });
+        alert(`Erro: ${typeof detail === 'string' ? detail : apiError.message ?? 'Tente novamente.'}`);
       }
     }
   };
@@ -410,7 +433,7 @@ export default function AdminSimulados() {
               Confirmar Exclusão
             </h3>
             <p className="text-sm text-[#475569] mb-6 leading-relaxed">
-              Você tem certeza de que deseja excluir o simulado <strong>"{deletingTitle}"</strong>? Essa ação é permanente e todas as questões associadas também serão excluídas.
+              Você tem certeza de que deseja excluir o simulado <strong>&quot;{deletingTitle}&quot;</strong>? Essa ação é permanente e todas as questões associadas também serão excluídas.
             </p>
             <div className="mt-8 flex justify-end gap-3">
               <button type="button" className="admin-btn-secondary" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</button>

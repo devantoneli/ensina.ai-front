@@ -6,6 +6,9 @@ import ChatSidebar from '@/components/chat/ChatSidebar';
 import TutorMarkdown from '@/components/TutorMarkdown';
 import { chatService, chatPersistenceService } from '@/services/chatService';
 import type { BackendMessage } from '@/services/chatService';
+import { subjectService } from '@/services/subjectService';
+import type { ContentItem, Subject } from '@/services/subjectService';
+import ContentSelector from '@/components/chat/ContentSelector';
 import './chat.css';
 
 type ChatMessage = {
@@ -81,6 +84,9 @@ type TrailSource = {
 type ChatSession = {
   id: string;
   backendId?: number;
+  contentId?: number;
+  teachingSubject?: Subject;
+  teachingContent?: ContentItem;
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -111,6 +117,9 @@ function sanitizeSessions(data: unknown): ChatSession[] {
       return {
         id: raw.id,
         ...(typeof raw.backendId === 'number' ? { backendId: raw.backendId } : {}),
+        ...(typeof raw.contentId === 'number' ? { contentId: raw.contentId } : {}),
+        ...(raw.teachingSubject ? { teachingSubject: raw.teachingSubject } : {}),
+        ...(raw.teachingContent ? { teachingContent: raw.teachingContent } : {}),
         title: raw.title,
         createdAt: raw.createdAt ?? new Date().toISOString(),
         updatedAt: raw.updatedAt ?? raw.createdAt ?? new Date().toISOString(),
@@ -427,6 +436,11 @@ function ChatContent() {
   const [userName, setUserName] = useState('');
   const [storageKey, setStorageKey] = useState('');
   const [contentIndex, setContentIndex] = useState(0);
+  const [teachingSubject, setTeachingSubject] = useState<Subject | null>(null);
+  const [teachingContent, setTeachingContent] = useState<ContentItem | null>(null);
+  const [isCreatingTutorChat, setIsCreatingTutorChat] = useState(false);
+  const [limitModal, setLimitModal] = useState<{ oldestChat: { id: number; name: string } } | null>(null);
+  const [pendingTutorSelection, setPendingTutorSelection] = useState<{ subject: Subject; content: ContentItem } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const activeSessionRef = useRef<string | null>(null);
   const activeProgressChatRef = useRef<number | null>(null);
@@ -471,7 +485,8 @@ function ChatContent() {
 
       if (shouldStartNewChat) {
         setActiveSessionId(null);
-        setInput('');
+        setTeachingContent(null);
+        setTeachingSubject(null);
       } else if (sessionIdFromQuery) {
         setActiveSessionId(sessionIdFromQuery);
       } else {
@@ -589,12 +604,15 @@ function ChatContent() {
   const assistantMetaSubtitle = activeSession?.latestAnalysis?.classification?.contents?.[0] ?? '';
   const activeContentId = activeSession?.latestAnalysis?.classification?.content_ids?.[contentIndex];
 
-  const createSession = (question: string): string => {
+  const createSession = (question: string, contentId?: number, subject?: Subject, content?: ContentItem): string => {
     const now = new Date().toISOString();
     const newId = makeId();
 
     const newSession: ChatSession = {
       id: newId,
+      ...(contentId !== undefined ? { contentId } : {}),
+      ...(subject ? { teachingSubject: subject } : {}),
+      ...(content ? { teachingContent: content } : {}),
       title: buildSessionTitle(question),
       createdAt: now,
       updatedAt: now,
@@ -628,6 +646,8 @@ function ChatContent() {
 
   const handleSelectSession = (sessionId: string) => {
     setActiveSessionId(sessionId);
+    setTeachingContent(null);
+    setTeachingSubject(null);
 
     const session = sessions.find((s) => s.id === sessionId);
     if (!session?.backendId || session.messages.length > 0) return;
@@ -671,6 +691,72 @@ function ChatContent() {
     setInput('');
   };
 
+  const handleModeChange = (newMode: 'chat_responde' | 'modo_ensino') => {
+    setMode(newMode);
+    if (newMode === 'chat_responde') {
+      setTeachingContent(null);
+      setTeachingSubject(null);
+    }
+  };
+
+  const doCreateTutorChat = async (subject: Subject, content: ContentItem) => {
+    const title = `${subject.name} — ${content.title}`;
+    const numericContentId = Number(content.id);
+    const result = await chatPersistenceService.createTutorChat(title);
+
+    if (!result.ok) {
+      if (result.status === 409) {
+        const detail = result.detail as { oldest_chat?: { id: number; name: string } } | null;
+        if (detail?.oldest_chat) {
+          setPendingTutorSelection({ subject, content });
+          setLimitModal({ oldestChat: detail.oldest_chat });
+        }
+      }
+      return;
+    }
+
+    const sessionId = createSession(title, Number.isFinite(numericContentId) ? numericContentId : undefined, subject, content);
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, backendId: result.chat.id } : s)),
+    );
+    setTeachingSubject(subject);
+    setTeachingContent(content);
+  };
+
+  const handleContentSelected = async (subject: Subject, content: ContentItem) => {
+    setIsCreatingTutorChat(true);
+    try {
+      const limitStatus = await subjectService.getLimitStatus();
+      if (limitStatus?.at_limit && limitStatus.oldest_chat) {
+        setPendingTutorSelection({ subject, content });
+        setLimitModal({ oldestChat: limitStatus.oldest_chat });
+        return;
+      }
+      await doCreateTutorChat(subject, content);
+    } finally {
+      setIsCreatingTutorChat(false);
+    }
+  };
+
+  const handleLimitModalConfirm = async () => {
+    const pending = pendingTutorSelection;
+    setLimitModal(null);
+    setPendingTutorSelection(null);
+    if (!pending) return;
+    setIsCreatingTutorChat(true);
+    try {
+      await doCreateTutorChat(pending.subject, pending.content);
+    } finally {
+      setIsCreatingTutorChat(false);
+    }
+  };
+
+  const handleChangeContent = () => {
+    setTeachingContent(null);
+    setTeachingSubject(null);
+    handleNewChat();
+  };
+
   const handleSend = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -681,7 +767,7 @@ function ChatContent() {
     setInput('');
 
     const isNewSession = !activeSessionId;
-    const sessionId = activeSessionId ?? createSession(question);
+    const sessionId = activeSessionId ?? createSession(question, contentIdFromQuery);
 
     // Resolve backendId: usa o da sessão existente ou cria um chat novo no backend
     let backendChatId: number | undefined =
@@ -729,7 +815,7 @@ function ChatContent() {
         {
           messages: fullHistory,
           mode: mode === 'modo_ensino' ? 'ensino' : 'responde',
-          content_id: contentIdFromQuery ?? activeContentId,
+          content_id: activeSession?.contentId ?? contentIdFromQuery ?? activeContentId,
           chat_id: backendChatId,
           exam_id: examIdFromQuery,
           question_id: questionIdFromQuery,
@@ -886,6 +972,7 @@ function ChatContent() {
           </aside>
 
           <section className="relative flex min-h-screen min-w-0 flex-1 flex-col rounded-[69px] bg-[linear-gradient(180deg,#F6FAFD_0%,#C7E7FF_100%)] px-6">
+            <>
             <header className="relative flex items-center justify-center py-6">
               <h1 className="text-center text-[calc(var(--app-root-font-size)*1.75)] font-medium text-[#1f2937]">{headerTitle}</h1>
               <button
@@ -899,7 +986,37 @@ function ChatContent() {
               </button>
             </header>
 
-            <div className={`flex-1 ${!hasMessages ? 'flex items-center justify-center' : 'overflow-y-auto pb-6'}`}>
+            {mode === 'modo_ensino' && hasMessages && (activeSession?.teachingContent || assistantMetaSubtitle) && (
+              <div className="mb-1 flex items-center justify-between gap-3 rounded-2xl border border-[#d0eaff] bg-[#f0f7ff] px-4 py-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="text-sm leading-none">
+                    {activeSession?.teachingContent?.type === 'video' ? '🎥' : activeSession?.teachingContent?.type === 'article' ? '📄' : '📖'}
+                  </span>
+                  <span className="truncate text-sm">
+                    <span className="text-[#6b7280]">{activeSession?.teachingSubject?.name || assistantMetaTitle} ›</span>{' '}
+                    <span className="font-medium text-[#1f2937]">{activeSession?.teachingContent?.title || assistantMetaSubtitle}</span>
+                  </span>
+                  {activeSession?.teachingContent?.difficulty && (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      activeSession.teachingContent.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                      activeSession.teachingContent.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {activeSession.teachingContent.difficulty === 'easy' ? 'Fácil' : activeSession.teachingContent.difficulty === 'hard' ? 'Difícil' : 'Médio'}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleChangeContent}
+                  className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-[#2f90e5] transition hover:bg-[#dbeeff]"
+                >
+                  Trocar conteúdo
+                </button>
+              </div>
+            )}
+
+            <div className={`flex-1 ${!hasMessages ? (mode === 'modo_ensino' && !teachingContent ? 'overflow-y-auto py-4' : 'flex items-center justify-center') : 'overflow-y-auto pb-6'}`}>
               {!hasMessages ? (
                 <div className="flex w-full flex-col items-center gap-7 px-6 text-center">
                   {greetingLine ? (
@@ -911,40 +1028,44 @@ function ChatContent() {
                     <button
                       type="button"
                       className={`user-mode-button ${mode === 'chat_responde' ? 'user-mode-button--active' : ''}`}
-                      onClick={() => setMode('chat_responde')}
+                      onClick={() => handleModeChange('chat_responde')}
                     >
                       Chat Responde
                     </button>
                     <button
                       type="button"
                       className={`user-mode-button ${mode === 'modo_ensino' ? 'user-mode-button--active modo-ensina' : ''}`}
-                      onClick={() => setMode('modo_ensino')}
+                      onClick={() => handleModeChange('modo_ensino')}
                     >
                       Modo Ensina
                     </button>
                   </div>
 
-                  <form
-                    onSubmit={handleSend}
-                    className="w-full max-w-[640px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="Por onde começamos?"
-                        className="flex-1 bg-transparent text-[var(--app-root-font-size)] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
-                        disabled={isSending}
-                      />
-                      <button
-                        type="submit"
-                        disabled={isSending || !input.trim()}
-                        className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[var(--app-root-font-size)] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
-                      >
-                        {isSending ? '...' : '➤'}
-                      </button>
-                    </div>
-                  </form>
+                  {mode === 'modo_ensino' && !teachingContent ? (
+                    <ContentSelector onSelect={handleContentSelected} loading={isCreatingTutorChat} />
+                  ) : (
+                    <form
+                      onSubmit={handleSend}
+                      className="w-full max-w-[640px] items-center gap-3 rounded-[20px] bg-white px-5 py-3.5 shadow-[0_12px_26px_rgba(34,67,111,0.18)]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          placeholder="Por onde começamos?"
+                          className="flex-1 bg-transparent text-[var(--app-root-font-size)] text-[#1f2937] outline-none placeholder:text-[#9aa9bb]"
+                          disabled={isSending}
+                        />
+                        <button
+                          type="submit"
+                          disabled={isSending || !input.trim()}
+                          className="h-11 rounded-[14px] bg-[#2f90e5] px-5 text-[var(--app-root-font-size)] font-semibold text-white transition hover:bg-[#227dce] disabled:cursor-not-allowed disabled:opacity-65"
+                        >
+                          {isSending ? '...' : '➤'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               ) : (
                 <div className="mx-auto w-full max-w-[900px] space-y-5">
@@ -955,10 +1076,10 @@ function ChatContent() {
                       ) : null}
 
                       <div
-                        className={`max-w-[80%] rounded-[22px] px-5 py-4 shadow-[0_8px_18px_rgba(34,67,111,0.12)] ${
+                        className={`max-w-[85%] rounded-[22px] px-5 py-4 ${
                           message.role === 'user'
-                            ? 'bg-[#2f90e5] text-white'
-                            : 'border border-white/80 bg-white text-[#1f2937]'
+                            ? 'bg-[#2f90e5] text-white shadow-[0_8px_18px_rgba(34,67,111,0.12)]'
+                            : 'bg-[#f1f5f9] text-[#1f2937]'
                         }`}
                       >
                         {message.role === 'assistant' && index === 0 && assistantMetaTitle ? (
@@ -1010,14 +1131,14 @@ function ChatContent() {
                   <button
                     type="button"
                     className={`user-mode-button ${mode === 'chat_responde' ? 'user-mode-button--active' : ''}`}
-                    onClick={() => setMode('chat_responde')}
+                    onClick={() => handleModeChange('chat_responde')}
                   >
                     Chat Responde
                   </button>
                   <button
                     type="button"
                     className={`user-mode-button ${mode === 'modo_ensino' ? 'user-mode-button--active modo-ensina' : ''}`}
-                    onClick={() => setMode('modo_ensino')}
+                    onClick={() => handleModeChange('modo_ensino')}
                   >
                     Modo Ensina
                   </button>
@@ -1043,6 +1164,37 @@ function ChatContent() {
                 </form>
               </footer>
             ) : null}
+            </>
+
+            {limitModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                  <h3 className="text-lg font-semibold text-[#1f2937]">Limite de chats atingido</h3>
+                  <p className="mt-2 text-sm text-[#6b7280]">
+                    Para criar este chat, o mais antigo será excluído automaticamente:
+                  </p>
+                  <div className="mt-3 rounded-xl bg-[#f3f8fd] px-4 py-3">
+                    <p className="text-sm font-medium text-[#374151]">{limitModal.oldestChat.name}</p>
+                  </div>
+                  <div className="mt-5 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setLimitModal(null); setPendingTutorSelection(null); }}
+                      className="flex-1 rounded-xl border border-[#dce9f4] py-2.5 text-sm font-medium text-[#374151] transition hover:bg-[#f3f8fd]"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLimitModalConfirm}
+                      className="flex-1 rounded-xl bg-[#138ecc] py-2.5 text-sm font-semibold text-white transition hover:bg-[#1078b0]"
+                    >
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </main>

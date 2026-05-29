@@ -239,7 +239,7 @@ export default function AdminQuestoes() {
       }
 
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao salvar:', error);
       setAlertModal({ message: 'Não foi possível salvar a questão. Tente novamente.', type: 'error' });
     }

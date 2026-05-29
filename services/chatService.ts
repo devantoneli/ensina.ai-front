@@ -58,6 +58,10 @@ type StreamHandlers = {
   onDone?: () => void;
 };
 
+export type CreateTutorChatResult =
+  | { ok: true; chat: BackendChat }
+  | { ok: false; status: number; detail: unknown };
+
 export const chatPersistenceService = {
   async createChat(name: string): Promise<BackendChat | null> {
     const token = getStoredToken();
@@ -72,6 +76,23 @@ export const chatPersistenceService = {
       return (await res.json()) as BackendChat;
     } catch {
       return null;
+    }
+  },
+
+  async createTutorChat(name: string): Promise<CreateTutorChatResult> {
+    const token = getStoredToken();
+    if (!token) return { ok: false, status: 401, detail: null };
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mode: 'LIVRE' }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) return { ok: true, chat: data as BackendChat };
+      return { ok: false, status: res.status, detail: data?.detail ?? data };
+    } catch {
+      return { ok: false, status: 502, detail: null };
     }
   },
 

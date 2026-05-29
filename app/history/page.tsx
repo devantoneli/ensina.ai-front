@@ -29,6 +29,13 @@ type CompletedSimulado = {
   completedAt: string;
 };
 
+type StoredChatSession = {
+  id?: unknown;
+  title?: unknown;
+  updatedAt?: unknown;
+  createdAt?: unknown;
+};
+
 // ── Helpers ───────────────────────────────────────────────
 
 const CHAT_STORAGE_PREFIX = 'ensina_ai_chat_sessions_v1';
@@ -65,11 +72,19 @@ function loadChatSessions(): ChatSession[] {
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .map((s: any) => ({
-        id: s.id ?? '',
-        title: s.title ?? 'Conversa sem título',
-        updatedAt: s.updatedAt ?? s.createdAt ?? new Date().toISOString(),
-      }))
+      .map((s) => {
+        const session = s as StoredChatSession;
+        return {
+          id: typeof session.id === 'string' ? session.id : '',
+          title: typeof session.title === 'string' ? session.title : 'Conversa sem título',
+          updatedAt:
+            typeof session.updatedAt === 'string'
+              ? session.updatedAt
+              : typeof session.createdAt === 'string'
+                ? session.createdAt
+                : new Date().toISOString(),
+        };
+      })
       .filter((s) => Boolean(s.id))
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 20);

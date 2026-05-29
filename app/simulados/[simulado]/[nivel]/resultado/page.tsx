@@ -62,7 +62,6 @@ export default function SimuladoResultadoPage() {
   useEffect(() => {
     try {
       if (typeof window === 'undefined') {
-        setLoading(false);
         return;
       }
 
@@ -71,15 +70,19 @@ export default function SimuladoResultadoPage() {
         getSimuladoResultStorageKey(completionKey)
       );
 
-      if (storedResult) {
-        const parsed = JSON.parse(storedResult) as ResultData;
-        setResult(parsed);
-      }
+      queueMicrotask(() => {
+        if (storedResult) {
+          const parsed = JSON.parse(storedResult) as ResultData;
+          setResult(parsed);
+        }
 
-      setLoading(false);
+        setLoading(false);
+      });
     } catch (error) {
       console.error('Error loading result:', error);
-      setLoading(false);
+      queueMicrotask(() => {
+        setLoading(false);
+      });
     }
   }, [titulo, nivelExibido]);
 
