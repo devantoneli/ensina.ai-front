@@ -13,108 +13,7 @@ type TempoFiltro = 'Todos' | 'Ate20' | '21-35' | '36+';
 type QuestoesFiltro = 'Todas' | 'Ate10' | '11-15' | '16+';
 type FeitosFiltro = 'Todos' | 'Feitos' | 'NaoFeitos';
 
-const SIMULADOS_EXEMPLO: Simulado[] = [
-  {
-    id: '1',
-    titulo: 'Gramática - Crase e Preposições',
-    descricao: 'Teste seus conhecimentos sobre crase, regência e o uso correto das preposições.',
-    nivel: 'Médio',
-    questoes: 10,
-    tempoEstimado: 30,
-    materia: 'Gramática',
-    feito: false,
-  },
-  {
-    id: '2',
-    titulo: 'Pontuação - Vírgulas e Pontos',
-    descricao: 'Pratique os usos mais comuns da pontuação em textos formais e informais.',
-    nivel: 'Fácil',
-    questoes: 8,
-    tempoEstimado: 20,
-    materia: 'Pontuação',
-    feito: false,
-  },
-  {
-    id: '3',
-    titulo: 'Ortografia - Palavras Difíceis',
-    descricao: 'Resolva questões sobre grafia, acentuação e palavras que geram dúvida.',
-    nivel: 'Difícil',
-    questoes: 15,
-    tempoEstimado: 45,
-    materia: 'Ortografia',
-    feito: false,
-  },
-  {
-    id: '4',
-    titulo: 'Acentuação Gráfica',
-    descricao: 'Fixe as regras de acentuação com exercícios práticos e objetivos.',
-    nivel: 'Médio',
-    questoes: 12,
-    tempoEstimado: 35,
-    materia: 'Acentuação',
-    feito: false,
-  },
-  {
-    id: '5',
-    titulo: 'Concordância Verbal e Nominal',
-    descricao: 'Aprofunde a concordância entre termos na frase com exemplos do dia a dia.',
-    nivel: 'Difícil',
-    questoes: 14,
-    tempoEstimado: 40,
-    materia: 'Gramática',
-    feito: false,
-  },
-  {
-    id: '6',
-    titulo: 'Interpretação de Textos',
-    descricao: 'Treine leitura, inferência e compreensão textual com situações reais.',
-    nivel: 'Médio',
-    questoes: 10,
-    tempoEstimado: 30,
-    materia: 'Interpretação',
-    feito: false,
-  },
-  {
-    id: '7',
-    titulo: 'Verbos - Conjugação Completa',
-    descricao: 'Domine tempos verbais e conjugações mais cobradas em prova.',
-    nivel: 'Médio',
-    questoes: 16,
-    tempoEstimado: 45,
-    materia: 'Gramática',
-    feito: false,
-  },
-  {
-    id: '8',
-    titulo: 'Pronomes e suas Funções',
-    descricao: 'Entenda os pronomes pessoais, possessivos, demonstrativos e seus usos.',
-    nivel: 'Fácil',
-    questoes: 10,
-    tempoEstimado: 25,
-    materia: 'Gramática',
-    feito: false,
-  },
-  {
-    id: '9',
-    titulo: 'Figuras de Linguagem',
-    descricao: 'Identifique recursos expressivos e interprete efeitos de sentido.',
-    nivel: 'Difícil',
-    questoes: 12,
-    tempoEstimado: 40,
-    materia: 'Literatura',
-    feito: false,
-  },
-  {
-    id: '10',
-    titulo: 'Semântica - Sinônimos e Antônimos',
-    descricao: 'Amplie o vocabulário e avance na leitura de contexto e significado.',
-    nivel: 'Fácil',
-    questoes: 10,
-    tempoEstimado: 20,
-    materia: 'Semântica',
-    feito: false,
-  },
-];
+
 
 const NIVEL_OPTIONS: NivelFiltro[] = ['Todos', 'Fácil', 'Médio', 'Difícil'];
 const TEMPO_OPTIONS: Array<{ value: TempoFiltro; label: string }> = [
@@ -200,7 +99,7 @@ export default function SimuladosPage() {
   const router = useRouter();
   const [busca, setBusca] = useState('');
   const [completedSimulados, setCompletedSimulados] = useState<string[]>([]);
-  const [simulados, setSimulados] = useState<Simulado[]>(SIMULADOS_EXEMPLO);
+  const [simulados, setSimulados] = useState<Simulado[]>([]);
   const [isSimuladosLoading, setIsSimuladosLoading] = useState(true);
   const [filtroNivel, setFiltroNivel] = useState<NivelFiltro>('Todos');
   const [filtroMateria, setFiltroMateria] = useState('Todas');
@@ -274,7 +173,7 @@ export default function SimuladosPage() {
         }
       } catch {
         if (isMounted) {
-          setSimulados(SIMULADOS_EXEMPLO);
+          setSimulados([]);
         }
       } finally {
         if (isMounted) {

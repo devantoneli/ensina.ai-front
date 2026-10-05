@@ -230,7 +230,8 @@ export default function DesempenhoPage() {
             topic: t.topic,
             correct: t.correct,
             wrong: t.wrong,
-            total: t.total
+            total: t.total,
+            accuracy_pct: t.accuracy_pct ?? 0
           };
         });
 
@@ -244,7 +245,8 @@ export default function DesempenhoPage() {
               topic: topicName,
               correct: stats.correct,
               wrong: stats.wrong,
-              total: stats.total
+              total: stats.total,
+              accuracy_pct: 0
             };
           }
         });

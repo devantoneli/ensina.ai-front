@@ -106,7 +106,7 @@ export default function SimuladoRevisarPage() {
 
             apiQuestions.forEach((q) => {
               const labels: OptionLabel[] = ['A', 'B', 'C', 'D', 'E'];
-              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt) => alt.is_correct);
+              const correctIdx = q.alternatives.slice(0, 5).findIndex((alt: any) => alt.is_correct);
               tempCorrectAnswers[String(q.id)] = labels[correctIdx >= 0 ? correctIdx : 0];
             });
 

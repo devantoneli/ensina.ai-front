@@ -202,6 +202,7 @@ export const authService = {
    * Verifica se o usuário está autenticado
    */
   isAuthenticated(): boolean {
+    if (typeof window === 'undefined') return false;
     return !!localStorage.getItem(ACCESS_TOKEN_KEY);
   },
 
@@ -209,6 +210,7 @@ export const authService = {
    * Retorna dados do usuário logado
    */
   getCurrentUser(): User | null {
+    if (typeof window === 'undefined') return null;
     const userData = localStorage.getItem(USER_DATA_KEY);
 
     if (!userData) {
