@@ -163,9 +163,9 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
     router.push('/chat?new=1');
   };
 
-  const handleHistory = () => {
+  const handleConsultas = () => {
     setIsQuickMenuOpen(false);
-    router.push('/history');
+    router.push('/consultas');
   };
 
   const handleSimulados = () => {
@@ -302,10 +302,10 @@ export default function ChatSidebar({ onNewChat }: ChatSidebarProps) {
             </button>
             <button
               type="button"
-              onClick={handleHistory}
+              onClick={handleConsultas}
               className="w-full rounded-xl border border-[#e5e7eb] px-4 py-3 text-left text-sm font-semibold text-[#2f79cb] transition hover:bg-[#f3f6fb]"
             >
-              Historico de conversas
+              Consultas
             </button>
             <button
               type="button"
