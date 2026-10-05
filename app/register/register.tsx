@@ -15,6 +15,8 @@ export default function RegisterPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const canSubmit = acceptedTerms && !isLoading;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -124,6 +126,7 @@ export default function RegisterPage() {
   };
 
   return (
+    <>
     <div data-page="register" className="min-h-screen flex items-center justify-center px-6 py-10 bg-[#f5e5dc]">
       <div className="w-full max-w-[1200px] flex flex-col lg:flex-row gap-20 items-center lg:items-start">
         {/* Lado Esquerdo - Apresentação */}
@@ -310,11 +313,11 @@ export default function RegisterPage() {
                   />
                   <span className="text-sm text-[#2d3748] leading-6">
                     Li e aceito os{' '}
-                    <button type="button" className="text-[#5b9fc9] font-medium hover:underline">
+                    <button type="button" onClick={() => setShowTermsModal(true)} className="text-[#5b9fc9] font-medium hover:underline">
                       termos de uso
                     </button>
                     {' '}e{' '}
-                    <button type="button" className="text-[#5b9fc9] font-medium hover:underline">
+                    <button type="button" onClick={() => setShowPrivacyModal(true)} className="text-[#5b9fc9] font-medium hover:underline">
                       política de privacidade
                     </button>
                   </span>
@@ -347,6 +350,107 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Modal de Termos de Uso */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-fade-in-up">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-medium text-[#2d3748]">Termos de Uso</h3>
+              <button 
+                onClick={() => setShowTermsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar text-[#4a5568] text-sm leading-relaxed space-y-4">
+              <p>
+                <strong>1. Aceitação dos Termos</strong><br/>
+                Ao acessar e utilizar o Ensina AI, você concorda com estes Termos de Uso. O Ensina AI é uma plataforma de cunho estritamente acadêmico, desenvolvida como Trabalho de Conclusão de Curso (TCC). Nosso objetivo é fornecer suporte ao estudo de Língua Portuguesa para o ENEM, utilizando ferramentas de Inteligência Artificial para mediação pedagógica.
+              </p>
+              
+              <p>
+                <strong>2. Responsabilidades do Usuário</strong><br/>
+                Você é responsável por manter a confidencialidade das credenciais de acesso da sua conta e por todas as atividades que nela ocorram. O uso da plataforma deve ser restrito a fins educacionais e de estudo.
+              </p>
+
+              <p>
+                <strong>3. Natureza das Respostas da Inteligência Artificial</strong><br/>
+                O Ensina AI utiliza modelos de linguagem (IA) para fornecer dicas e explicações. Embora o sistema faça consultas a fontes validadas, as respostas são geradas automaticamente e podem, ocasionalmente, apresentar imprecisões ("alucinações"). Recomendamos sempre verificar as informações em fontes oficiais. O sistema foi projetado para auxiliar o raciocínio, não para substituir o aprendizado ativo.
+              </p>
+
+              <p>
+                <strong>4. Disponibilidade do Sistema</strong><br/>
+                Por se tratar de um projeto acadêmico sem fins lucrativos, o sistema pode apresentar instabilidades temporárias ou ser descontinuado ao final do ciclo de avaliação institucional, sem aviso prévio ou garantia de disponibilidade de longo prazo.
+              </p>
+            </div>
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex justify-end gap-3">
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="px-6 py-2.5 rounded-xl text-[#6b7280] font-medium hover:bg-gray-200 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Política de Privacidade (LGPD) */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-fade-in-up">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-medium text-[#2d3748]">Política de Privacidade (LGPD)</h3>
+              <button 
+                onClick={() => setShowPrivacyModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar text-[#4a5568] text-sm leading-relaxed space-y-4">
+              <p>
+                <strong>1. Coleta e Tratamento de Dados</strong><br/>
+                Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), informamos que coletamos apenas os dados essenciais para o funcionamento do sistema: nome, e-mail e telefone (para fins de recuperação e autenticação em dois fatores). Os dados de desempenho em simulados e interações no chat são coletados exclusivamente para gerar indicadores de aprendizagem para o próprio usuário e para a avaliação do projeto de pesquisa. Não comercializamos suas informações sob nenhuma hipótese.
+              </p>
+
+              <p>
+                <strong>2. Proteção a Menores</strong><br/>
+                Ao utilizar o Ensina AI, estudantes adolescentes têm seus dados tratados no seu melhor interesse (Estatuto da Criança e do Adolescente), com a finalidade exclusiva de apoio ao estudo. Não realizamos rastreamento para fins de publicidade direcionada.
+              </p>
+
+              <p>
+                <strong>3. Compartilhamento com APIs de Inteligência Artificial</strong><br/>
+                Para oferecer o serviço de tutoria, as mensagens trocadas no chat são enviadas e processadas por uma API externa da Google (Gemini 2.5 Flash). Garantimos que a nossa configuração de acesso corporativo impede que as suas mensagens sejam retidas ou utilizadas pela Google para treinar modelos públicos.
+              </p>
+
+              <p>
+                <strong>4. Seus Direitos (Exclusão e Consentimento)</strong><br/>
+                O seu consentimento é livre e esclarecido. Você poderá, a qualquer momento, visualizar seus dados e solicitar a exclusão definitiva da sua conta e de todo o seu histórico (conversas e simulados) entrando em contato com a equipe do projeto ou diretamente pelo painel do usuário.
+              </p>
+            </div>
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex justify-end gap-3">
+              <button
+                onClick={() => setShowPrivacyModal(false)}
+                className="px-6 py-2.5 rounded-xl text-[#6b7280] font-medium hover:bg-gray-200 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
