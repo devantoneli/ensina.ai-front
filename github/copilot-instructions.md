@@ -1,8 +1,8 @@
-# Copilot Instructions — Projeto Ensina Aí
+# Copilot Instructions — Projeto Ensina AI
 
 ## Contexto do Projeto
 
-Este repositório é o **FRONTEND** do projeto **Ensina Aí**, um agente de Inteligência Artificial educacional desenvolvido como Trabalho de Conclusão de Curso (TCC).
+Este repositório é o **FRONTEND** do projeto **Ensina AI**, um agente de Inteligência Artificial educacional desenvolvido como Trabalho de Conclusão de Curso (TCC).
 
 **IMPORTANTE:** O backend está em um **repositório separado**. Este repositório contém **apenas o frontend**.
 

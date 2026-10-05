@@ -118,14 +118,14 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       <div>
         <Image
           src="/assets/cadastro/Container.svg"
-          alt="Ícone Ensina Aí"
+          alt="Ícone Ensina AI"
           width={64}
           height={64}
         />
 
         {/* Título com gradiente */}
         <h1 className="text-3xl font-medium mt-6 leading-tight bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] bg-clip-text text-transparent">
-          Comece sua jornada no Ensina Aí
+          Comece sua jornada no Ensina AI
         </h1>
 
         {/* Descrição */}
@@ -156,7 +156,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       {/* Depoimento */}
       <div className="bg-white/50 border border-white rounded-2xl p-6">
         <p className="text-[#6b7280] text-sm leading-5">
-          &ldquo;O Ensina Aí revolucionou minha forma de estudar Português. O método socrático me fez realmente entender, não apenas decorar!&rdquo;
+          &ldquo;O Ensina AI revolucionou minha forma de estudar Português. O método socrático me fez realmente entender, não apenas decorar!&rdquo;
         </p>
         <p className="mt-4 text-sm">
           <span className="font-bold text-[#2d3748]">Ana Paula Silva</span>

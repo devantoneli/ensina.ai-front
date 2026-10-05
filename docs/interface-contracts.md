@@ -1,4 +1,4 @@
-# Ensina Ai - Contratos de Interface (Frontend <-> Backend)
+# Ensina AI - Contratos de Interface (Frontend <-> Backend)
 
 Base URL (dev): http://127.0.0.1:8000
 - Pode ser sobrescrito por API_URL ou NEXT_PUBLIC_API_URL

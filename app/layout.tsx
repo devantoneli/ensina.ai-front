@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ensina Aí - Aprenda Português com IA",
+  title: "Ensina AI - Aprenda Português com IA",
   description: "Agente educacional inteligente baseado em método socrático para ensino de Português",
 };
 

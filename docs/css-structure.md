@@ -1,4 +1,4 @@
-# Estrutura de CSS - Ensina Aí Frontend
+# Estrutura de CSS - Ensina AI Frontend
 
 ## Organização de Estilos
 

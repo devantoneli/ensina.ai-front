@@ -1,4 +1,4 @@
-# Ensina Ai - Dicionario de Dados
+# Ensina AI - Dicionario de Dados
 
 Fonte principal: schema_oracle_12c.sql (Oracle 12c).
 Observacao: schema_atualizado.ts esta vazio no repositorio.

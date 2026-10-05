@@ -1,4 +1,4 @@
-# Ensina Aí — API Backend
+# Ensina AI — API Backend
 
 ## Comunicação
 

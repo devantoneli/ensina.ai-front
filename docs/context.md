@@ -1,8 +1,8 @@
-# Ensina Aí — Contexto do Projeto
+# Ensina AI — Contexto do Projeto
 
 ## Visão Geral
 
-O **Ensina Aí** é um sistema de **Inteligência Artificial voltado para auxílio no aprendizado**, desenvolvido como **Trabalho de Conclusão de Curso (TCC)** do curso de Análise e Desenvolvimento de Sistemas (ADS).
+O **Ensina AI** é um sistema de **Inteligência Artificial voltado para auxílio no aprendizado**, desenvolvido como **Trabalho de Conclusão de Curso (TCC)** do curso de Análise e Desenvolvimento de Sistemas (ADS).
 
 O objetivo do projeto é criar um **agente educacional inteligente** que auxilie estudantes no processo de aprendizagem de forma ativa.
 
@@ -27,7 +27,7 @@ Esses sistemas muitas vezes:
 * utilizam fontes não verificadas
 * incentivam aprendizagem passiva
 
-O **Ensina Aí** busca resolver esse problema transformando a IA em um **agente de orientação educacional**.
+O **Ensina AI** busca resolver esse problema transformando a IA em um **agente de orientação educacional**.
 
 ---
 

@@ -150,13 +150,13 @@ export default function LoginPage() {
           <div className="flex items-center gap-3">
             <Image 
               src="/assets/login/8449060e38dcb948c8eccbc3c8aaac60f16a99f0.png" 
-              alt="Logo Ensina Aí" 
+              alt="Logo Ensina AI" 
               width={55} 
               height={47}
               className="object-contain"
             />
             <div>
-              <h1 className="text-white text-3xl font-medium">Ensina Aí</h1>
+              <h1 className="text-white text-3xl font-medium">Ensina AI</h1>
               <p className="text-white/80 text-sm">Aprenda Português com IA</p>
             </div>
           </div>

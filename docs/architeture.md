@@ -1,8 +1,8 @@
-# Ensina Aí — Arquitetura do Sistema
+# Ensina AI — Arquitetura do Sistema
 
 ## Visão Geral
 
-O sistema Ensina Aí segue uma **arquitetura em camadas**, separando responsabilidades para facilitar manutenção, escalabilidade e organização do código.
+O sistema Ensina AI segue uma **arquitetura em camadas**, separando responsabilidades para facilitar manutenção, escalabilidade e organização do código.
 
 Camadas principais:
 
