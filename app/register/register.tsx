@@ -135,11 +135,11 @@ export default function RegisterPage() {
             <Image
               src="/assets/cadastro/Container.svg"
               alt="Ícone Ensina AI"
-              width={64}
-              height={64}
+              width={80}
+              height={80}
             />
 
-            <h1 className="text-3xl font-medium mt-6 leading-tight bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] bg-clip-text text-transparent">
+            <h1 className="text-4xl lg:text-5xl font-bold tracking-tight mt-6 leading-tight bg-gradient-to-r from-[#5b9fc9] to-[#88c9a1] bg-clip-text text-transparent">
               Comece sua jornada no Ensina AI
             </h1>
 

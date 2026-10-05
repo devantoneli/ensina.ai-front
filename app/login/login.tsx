@@ -147,17 +147,17 @@ export default function LoginPage() {
         <div className="flex flex-col h-full w-full px-16 py-12">
 
           {/* Logo e Nome */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 mb-8">
             <Image 
               src="/assets/login/8449060e38dcb948c8eccbc3c8aaac60f16a99f0.png" 
               alt="Logo Ensina AI" 
-              width={55} 
-              height={47}
+              width={80} 
+              height={68}
               className="object-contain"
             />
             <div>
-              <h1 className="text-white text-3xl font-medium">Ensina AI</h1>
-              <p className="text-white/80 text-sm">Aprenda Português com IA</p>
+              <h1 className="text-white text-5xl font-bold tracking-tight">Ensina AI</h1>
+              <p className="text-white/90 text-lg mt-1 font-medium">Aprenda Português com IA</p>
             </div>
           </div>
 
