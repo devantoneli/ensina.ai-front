@@ -205,8 +205,8 @@ export default function LoginPage() {
 
           {/* Checks centralizados acima da ilustração */}
           <div className="flex justify-center gap-8 text-white text-sm mb-6">
-            <span>✓ Mais de 1.000 exercícios</span>
-            <span>✓ Certificado de conclusão</span>
+            <span>✓ Histórico de estudos</span>
+            <span>✓ Explicações guiadas</span>
             <span>✓ 100% focado em Português</span>
           </div>
 
