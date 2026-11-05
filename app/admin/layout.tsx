@@ -61,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <path d="M12 8H12.01" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <h1 className="admin-brand-title">Ensina.AI</h1>
+            <h1 className="admin-brand-title">Ensina AI</h1>
           </div>
 
           <nav className="admin-nav">

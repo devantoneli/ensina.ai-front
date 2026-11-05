@@ -151,7 +151,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-4">
             {([
               'Chat interativo com IA especializada em Português',
-              'Simulados personalizados e adaptados ao seu nível',
+              'Simulados com questões de exames anteriores',
               'Acompanhamento detalhado do seu progresso',
               '100% gratuito e em conformidade com a LGPD',
             ]).map((item) => (
@@ -168,11 +168,7 @@ export default function RegisterPage() {
 
           <div className="bg-white/50 border border-white rounded-2xl p-6">
             <p className="text-[#6b7280] text-sm leading-5">
-              &ldquo;O Ensina AI revolucionou minha forma de estudar Português. O método socrático me fez realmente entender, não apenas decorar!&rdquo;
-            </p>
-            <p className="mt-4 text-sm">
-              <span className="font-bold text-[#2d3748]">Ana Paula Silva</span>
-              <span className="text-[#6b7280]"> · Estudante</span>
+              O Ensina AI orienta o estudo com perguntas e dicas, em vez de simplesmente entregar a resposta.
             </p>
           </div>
         </div>

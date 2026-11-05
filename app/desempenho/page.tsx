@@ -50,6 +50,9 @@ function IconTrend() {
 
 // ── Cores para o gráfico de pizza ─────────────────────────
 
+// Tópicos com acerto abaixo deste percentual são os de maior dificuldade (igual ao backend e ao relatório).
+const WEAK_TOPIC_THRESHOLD = 50;
+
 const PIE_COLORS = ['#4791df', '#f97316', '#a78bfa', '#34d399', '#f472b6', '#fbbf24', '#60a5fa'];
 
 function buildConicGradient(slices: { value: number; color: string }[]): string {
@@ -271,7 +274,7 @@ export default function DesempenhoPage() {
         db.accuracy.total = overallTotal;
         db.accuracy.accuracy_pct = overallPct;
 
-        const weak = mergedTopicsList.filter((t) => t.accuracy_pct < 70);
+        const weak = mergedTopicsList.filter((t) => t.accuracy_pct < WEAK_TOPIC_THRESHOLD);
         weak.sort((a, b) => a.accuracy_pct - b.accuracy_pct);
         db.weak_topics = weak;
 
@@ -297,7 +300,7 @@ export default function DesempenhoPage() {
     return name !== '' && Number.isFinite(topic.accuracy_pct);
   });
   const weakTopics = [...topicsForDisplay]
-    .filter((topic) => topic.accuracy_pct < 70)
+    .filter((topic) => topic.accuracy_pct < WEAK_TOPIC_THRESHOLD)
     .sort((a, b) => a.accuracy_pct - b.accuracy_pct);
   const bestTopic = topicsForDisplay.length
     ? topicsForDisplay.reduce((a, b) => (a.accuracy_pct >= b.accuracy_pct ? a : b))

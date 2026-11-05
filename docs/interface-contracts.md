@@ -122,7 +122,12 @@ GET /chats/limit-status
 =======================
 
 GET /progress/dashboard
-- Response: { study_time, accuracy, studied_contents, weak_topics }
+- Response: { study_time: { total_sessions, total_messages, last_studied_at },
+    accuracy: { total, correct, wrong, accuracy_pct, by_topic: [ { topic, total, correct, wrong, accuracy_pct } ], by_difficulty },
+    studied_contents: [ { content_id, content_name, interactions, last_studied_at, correct, wrong } ],
+    weak_topics: [ mesmo formato de by_topic; acerto < 50% ],
+    topics_covered: string[], total_interactions }
+- Alinhado ao backend em 02/11/2026 (testes em tests/integration/test_progress_router.py do backend).
 
 POST /progress/session/start/{chat_id}
 - Response: { session_id, messages_count }
@@ -136,6 +141,7 @@ POST /progress/interaction/content/{content_id}
 POST /progress/interaction/question
 - Body: { chat_id, question, answer, topic, content_id? }
 - Response: { is_correct, difficulty, notes }
+- O backend avalia a resposta com o Gemini (is_correct, difficulty facil|medio|dificil, notes) e registra a interacao.
 
 =======================
 6) Disciplinas e Conteudos
@@ -150,6 +156,12 @@ GET /contents/
 POST /contents/
 PUT /contents/{id}
 DELETE /contents/{id}?force=true|false
+
+GET /student-profile/materials
+- Perfil: estudante (administrador recebe 403)
+- Response: [ { id, name, contents: [ { id, name, sources: [ { id, name, source_type, archive_url, knowledge_source_date } ] } ] } ]
+- Regras (cobertas por testes no backend): so conteudos ativos, so fontes validadas; conteudos sem fonte
+  validada e disciplinas sem conteudo nao aparecem. Usado por services/consultasService.ts (tela Consultas).
 
 GET /contents/discipline/{discipline_id}
 

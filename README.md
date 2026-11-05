@@ -72,6 +72,14 @@ Para verificar padrao de codigo e possiveis problemas:
 npm run lint
 ```
 
+## Verificacao de qualidade (estado em 02/11/2026)
+
+- `npx tsc --noEmit`: passa sem erros de tipo.
+- `npm run build`: compila com sucesso (Next.js 16).
+- `npm run lint`: 22 erros (principalmente `no-explicit-any`) e 38 avisos (variaveis nao usadas).
+- Nao ha testes automatizados no front; os testes automatizados do projeto estao no repositorio do
+  backend (`ensina.ai-back/tests`).
+
 ## Scripts disponiveis
 
 - npm run dev: inicia o projeto em modo desenvolvimento.
